@@ -1,0 +1,6 @@
+{
+  "name": "Lar Harmonia - Plataforma de Gestão Social",
+  "description": "Plataforma de gestão social para Lar Harmonia, facilitando o acompanhamento de assistidos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

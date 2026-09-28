@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/logo_lar_harmonia.svg" />
+    <title>Lar Harmonia - Plataforma de Gestão Social</title>
+    <meta name="description" content="Plataforma de gestão social para Lar Harmonia, facilitando o acompanhamento de assistidos." />
+    <meta property="og:title" content="Lar Harmonia - Plataforma de Gestão Social" />
+    <meta property="og:description" content="Plataforma de gestão social para Lar Harmonia, facilitando o acompanhamento de assistidos." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
