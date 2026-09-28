@@ -160,9 +160,9 @@ export function getRoleBadgeClasses(role?: UserRole | string | null): {
   const r = (role || '').toLowerCase().trim();
   if (r === 'admin' || r.includes('diretor') || r.includes('administrador')) {
     return {
-      badge: 'bg-purple-100 text-purple-900 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800',
+      badge: 'bg-purple-100 text-purple-900 border-purple-200 dark:bg-purple-900/50 dark:text-purple-200 dark:border-purple-500 font-semibold',
       dot: 'bg-purple-600 dark:bg-purple-400',
-      border: 'border-purple-300 dark:border-purple-700'
+      border: 'border-purple-300 dark:border-purple-600'
     };
   }
   if (
@@ -172,15 +172,15 @@ export function getRoleBadgeClasses(role?: UserRole | string | null): {
     r.includes('assist')
   ) {
     return {
-      badge: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+      badge: 'bg-emerald-100 text-emerald-900 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-200 dark:border-emerald-500 font-semibold',
       dot: 'bg-emerald-600 dark:bg-emerald-400',
-      border: 'border-emerald-300 dark:border-emerald-700'
+      border: 'border-emerald-300 dark:border-emerald-600'
     };
   }
   return {
-    badge: 'bg-sky-100 text-sky-900 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+    badge: 'bg-sky-100 text-sky-900 border-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:border-sky-500 font-semibold',
     dot: 'bg-sky-600 dark:bg-sky-400',
-    border: 'border-sky-300 dark:border-sky-700'
+    border: 'border-sky-300 dark:border-sky-600'
   };
 }
 

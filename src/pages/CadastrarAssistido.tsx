@@ -665,8 +665,8 @@ export default function CadastrarAssistido() {
                   }}
                   className={`p-3.5 text-left transition flex items-center gap-3 cursor-pointer ${
                     isActive
-                      ? 'bg-emerald-50/90 dark:bg-emerald-950/50 border-b-2 lg:border-b-0 lg:border-l-4 border-emerald-600 dark:border-emerald-500'
-                      : 'hover:bg-gray-50 dark:hover:bg-slate-750'
+                      ? 'bg-emerald-50/90 dark:bg-emerald-950/60 border-b-2 lg:border-b-0 lg:border-l-4 border-emerald-600 dark:border-emerald-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-700/60'
                   }`}
                 >
                   <div
