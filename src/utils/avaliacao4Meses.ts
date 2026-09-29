@@ -123,9 +123,9 @@ export function isPendenteAvaliacao4Meses(item: AssistidoParaAvaliacao): boolean
  */
 export const FILTRO_AVALIACAO_4_MESES = [
   'Todos',
-  '⚠️ Pendentes de Avaliação (>= 4 Meses)',
-  '⏳ Em Acompanhamento (< 4 Meses)',
-  '✅ Avaliação Concluída'
+  'Pendentes de Avaliação (>= 4 Meses)',
+  'Em Acompanhamento (< 4 Meses)',
+  'Avaliação Concluída'
 ] as const;
 
 export type TipoFiltroAvaliacao4Meses = (typeof FILTRO_AVALIACAO_4_MESES)[number];

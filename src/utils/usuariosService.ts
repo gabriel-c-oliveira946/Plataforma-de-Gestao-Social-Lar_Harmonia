@@ -1,12 +1,19 @@
 import { supabase } from '../lib/supabase/client';
 import { UserRole, mapCargoToEnumRole, mapRoleToCargoFormatado } from '../types/auth';
-import { atualizarCargoMembro, getEquipeList, saveMembroLocal } from './equipe';
+import { atualizarCargoMembro, getEquipeList, saveMembroLocal, desativarMembroEquipe } from './equipe';
 
 export interface UpdateCargoParams {
   membroId: string;
   novoCargo: string;
   role?: UserRole;
   email?: string;
+  showAlert?: boolean;
+}
+
+export interface DesativarUsuarioParams {
+  membroId: string;
+  email?: string;
+  mensagem?: string;
   showAlert?: boolean;
 }
 
@@ -25,6 +32,59 @@ export function mapearCargoParaEnum(cargoOuRole?: string | null): UserRole {
  */
 export function formatarNomeCargo(cargoOuRole?: string | null): string {
   return mapRoleToCargoFormatado(cargoOuRole);
+}
+
+/**
+ * Desativa o acesso de um membro da equipe no Supabase e armazenamento local:
+ * - .update({ status: 'inativo', ativo: false, cargo: 'Inativo' }).eq('id', membroId)
+ * - Exibe alert caso ocorra erro no Supabase
+ */
+export async function desativarUsuario({
+  membroId,
+  email,
+  mensagem,
+  showAlert = true
+}: DesativarUsuarioParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+    if (hasUrl) {
+      let { error } = await supabase
+        .from('profiles')
+        .update({
+          status: 'inativo',
+          cargo: 'Inativo'
+        })
+        .eq('id', membroId);
+
+      if (error && error.message?.includes('status')) {
+        const retry = await supabase
+          .from('profiles')
+          .update({
+            cargo: 'Inativo'
+          })
+          .eq('id', membroId);
+        error = retry.error;
+      }
+
+      if (error) {
+        console.error('Erro ao desativar membro no Supabase:', error);
+        if (showAlert && typeof window !== 'undefined') {
+          window.alert(`Erro ao desativar acesso: ${error.message}`);
+        }
+        return { success: false, error: error.message };
+      }
+    }
+
+    await desativarMembroEquipe(membroId, email, mensagem);
+    return { success: true };
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Erro inesperado ao desativar acesso.';
+    console.error('Erro em desativarUsuario:', err);
+    if (showAlert && typeof window !== 'undefined') {
+      window.alert(`Erro ao desativar acesso: ${errorMsg}`);
+    }
+    return { success: false, error: errorMsg };
+  }
 }
 
 /**
@@ -80,6 +140,7 @@ export async function atualizarCargoUsuario({
 
 export const usuariosService = {
   atualizarCargo: atualizarCargoUsuario,
+  desativarUsuario,
   mapearCargoParaEnum,
   formatarNomeCargo,
   getEquipeList,

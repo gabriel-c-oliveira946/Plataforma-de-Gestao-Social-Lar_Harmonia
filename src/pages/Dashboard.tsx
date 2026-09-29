@@ -582,15 +582,15 @@ export default function Dashboard() {
 
       // 12. Filtro Dedicado "Avaliação de 4 Meses":
       // [Todos]
-      // [⚠️ Pendentes de Avaliação (>= 4 Meses)] (Exibe apenas os assistidos com 120+ dias de curso ativos e sem avaliação)
-      // [⏳ Em Acompanhamento (< 4 Meses)] (Exibe assistidos mais recentes com menos de 120 dias)
-      // [✅ Avaliação Concluída] (Exibe assistidos que já tiveram a avaliação de 4 meses registrada)
+      // [Pendentes de Avaliação (>= 4 Meses)] (Exibe apenas os assistidos com 120+ dias de curso ativos e sem avaliação)
+      // [Em Acompanhamento (< 4 Meses)] (Exibe assistidos mais recentes com menos de 120 dias)
+      // [Avaliação Concluída] (Exibe assistidos que já tiveram a avaliação de 4 meses registrada)
       if (filterAvaliacao !== 'Todos') {
-        if (filterAvaliacao === '⚠️ Pendentes de Avaliação (>= 4 Meses)') {
+        if (filterAvaliacao.includes('Pendentes de Avaliação') || filterAvaliacao === 'Pendentes de Avaliação (>= 4 Meses)') {
           if (!isPendenteAvaliacao4Meses(item)) {
             return false;
           }
-        } else if (filterAvaliacao === '⏳ Em Acompanhamento (< 4 Meses)') {
+        } else if (filterAvaliacao.includes('Em Acompanhamento') || filterAvaliacao === 'Em Acompanhamento (< 4 Meses)') {
           const dias = getDiasIngresso(item.data_ingresso, item.created_at);
           const isRecente =
             dias !== null &&
@@ -600,7 +600,7 @@ export default function Dashboard() {
           if (!isRecente) {
             return false;
           }
-        } else if (filterAvaliacao === '✅ Avaliação Concluída') {
+        } else if (filterAvaliacao.includes('Avaliação Concluída') || filterAvaliacao === 'Avaliação Concluída') {
           if (!hasAvaliacao4Meses(item)) {
             return false;
           }
@@ -964,14 +964,14 @@ export default function Dashboard() {
 
         {/* CARDS DE MÉTRICAS RÁPIDAS NO TOPO */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Card Requisitado com Destaque: 📋 X Pendentes de Avaliação de 4 Meses */}
+          {/* Card Requisitado com Destaque: X Pendentes de Avaliação de 4 Meses */}
           <div
             onClick={() => {
-              setFilterAvaliacao('⚠️ Pendentes de Avaliação (>= 4 Meses)');
+              setFilterAvaliacao('Pendentes de Avaliação (>= 4 Meses)');
               setShowFilters(true);
             }}
             className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer shadow-xs hover:shadow-sm flex items-center justify-between ${
-              filterAvaliacao === '⚠️ Pendentes de Avaliação (>= 4 Meses)'
+              filterAvaliacao.includes('Pendentes de Avaliação')
                 ? 'bg-amber-100/90 dark:bg-amber-950/60 border-amber-400 dark:border-amber-600 ring-2 ring-amber-400'
                 : 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 hover:border-amber-300 dark:hover:border-amber-700'
             }`}
@@ -983,13 +983,13 @@ export default function Dashboard() {
                 <span>Avaliação de 4 Meses</span>
               </div>
               <div className="text-2xl font-bold text-amber-950 dark:text-amber-100 font-heading">
-                📋 {metrics.pendentes4Meses}{' '}
+                {metrics.pendentes4Meses}{' '}
                 <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                   {metrics.pendentes4Meses === 1 ? 'Pendente' : 'Pendentes'}
                 </span>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
-                📋 {metrics.pendentes4Meses} Pendentes de Avaliação de 4 Meses
+                {metrics.pendentes4Meses} {metrics.pendentes4Meses === 1 ? 'Pendente de Avaliação de 4 Meses' : 'Pendentes de Avaliação de 4 Meses'}
               </p>
             </div>
             <div className="w-11 h-11 rounded-lg bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
@@ -1050,11 +1050,11 @@ export default function Dashboard() {
           {/* Avaliações Concluídas */}
           <div
             onClick={() => {
-              setFilterAvaliacao('✅ Avaliação Concluída');
+              setFilterAvaliacao('Avaliação Concluída');
               setShowFilters(true);
             }}
             className={`p-4 rounded-xl border transition shadow-xs hover:shadow-sm cursor-pointer flex items-center justify-between ${
-              filterAvaliacao === '✅ Avaliação Concluída'
+              filterAvaliacao.includes('Avaliação Concluída')
                 ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 ring-2 ring-emerald-500/20'
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
             }`}
@@ -1556,10 +1556,10 @@ export default function Dashboard() {
                         {isPendenteAvaliacao4Meses(assistido) && (
                           <div className="mb-1.5">
                             <span
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs animate-pulse"
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs"
                               title="Assistido com mais de 120 dias de curso/acolhimento ativos. Necessita registro da Avaliação de 4 Meses."
                             >
-                              <span>⚠️</span>
+                              <AlertTriangle className="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
                               <span>Avaliação 4 Meses Pendente</span>
                             </span>
                           </div>
@@ -1781,8 +1781,8 @@ export default function Dashboard() {
                         {/* Avaliação 4 Meses */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           {isPendente ? (
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs animate-pulse">
-                              <span>⚠️</span>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                              <AlertTriangle className="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
                               <span>Avaliação 4 Meses Pendente</span>
                             </span>
                           ) : isConcluida ? (
@@ -1792,7 +1792,7 @@ export default function Dashboard() {
                             </span>
                           ) : (
                             <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                              {dias !== null ? `⏳ ${dias} dias (< 120 dias)` : 'Em acompanhamento'}
+                              {dias !== null ? `${dias} dias (< 120 dias)` : 'Em acompanhamento'}
                             </span>
                           )}
                         </td>

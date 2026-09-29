@@ -236,8 +236,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
             email: trimmedEmail,
             role: novoRole,
             cargo: cargoFormatado,
-            status: 'ativo',
-            ativo: true
+            status: 'ativo'
           }
         ]);
       } catch (upsertErr) {
@@ -449,18 +448,33 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
       : undefined;
 
     try {
-      // Requisito: Atualização direta na tabela 'profiles' do Supabase com enum válido
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          cargo: 'Inativo',
-          status: 'inativo',
-          role: 'recepcao'
-        })
-        .eq('id', membroToDelete.id);
+      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+      if (hasUrl) {
+        // Atualização no Supabase da tabela profiles (cargo e status)
+        let { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            status: 'inativo',
+            cargo: 'Inativo'
+          })
+          .eq('id', membroToDelete.id);
 
-      if (profileError) {
-        console.warn('Erro ao desativar membro em profiles:', profileError);
+        if (profileError && profileError.message?.includes('status')) {
+          const retry = await supabase
+            .from('profiles')
+            .update({
+              cargo: 'Inativo'
+            })
+            .eq('id', membroToDelete.id);
+          profileError = retry.error;
+        }
+
+        if (profileError) {
+          console.error('Erro ao desativar membro no Supabase:', profileError);
+          alert(`Erro ao desativar acesso: ${profileError.message}`);
+          setErrorMsg(`Erro: ${profileError.message}`);
+          return;
+        }
       }
 
       const res = await desativarMembroEquipe(
@@ -468,23 +482,23 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
         membroToDelete.email,
         textoMensagem
       );
-      if (!res.success && profileError) {
+      if (!res.success) {
+        alert(`Erro ao desativar acesso: ${res.error}`);
         setErrorMsg(res.error || 'Não foi possível desativar o operador.');
         return;
       }
 
-      setSuccessMsg(
-        `Acesso do operador ${membroToDelete.nome} desativado com sucesso.${
-          textoMensagem ? ' Mensagem explicativa registrada.' : ''
-        }`
-      );
+      setSuccessMsg('Acesso desativado com sucesso!');
       setMembroToDelete(null);
       setHabilitarMensagem(false);
       setMensagemDesativacao('');
       await loadEquipe();
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Falha ao desativar o membro da equipe.');
+      const errorMsg = err?.message || 'Falha ao desativar o membro da equipe.';
+      console.error('Erro em handleConfirmDelete:', err);
+      alert(`Erro ao desativar acesso: ${errorMsg}`);
+      setErrorMsg(errorMsg);
     } finally {
       setDeletingMembro(false);
     }
@@ -505,7 +519,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
       const restoredCargo = mapRoleToCargoFormatado(membro.role || membro.cargo);
 
       // Requisito: Atualização direta na tabela 'profiles' do Supabase com enum válido
-      const { error: profileError } = await supabase
+      let { error: profileError } = await supabase
         .from('profiles')
         .update({
           cargo: restoredCargo,
@@ -513,6 +527,17 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
           status: 'ativo'
         })
         .eq('id', membro.id);
+
+      if (profileError && profileError.message?.includes('status')) {
+        const retry = await supabase
+          .from('profiles')
+          .update({
+            cargo: restoredCargo,
+            role: chaveEnumRestaurada
+          })
+          .eq('id', membro.id);
+        profileError = retry.error;
+      }
 
       if (profileError) {
         console.warn('Erro ao reativar membro em profiles:', profileError);
@@ -678,7 +703,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                         Cadastrar Novo Membro / Operador
                       </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Cria o acesso no Supabase Auth com permissões e metadados configurados
+                        Cria o acesso institucional com perfil e permissões configurados
                       </p>
                     </div>
                   </div>

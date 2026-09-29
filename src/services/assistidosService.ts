@@ -3,6 +3,22 @@ import { Assistido } from '../components/VerFichaModal';
 
 const LOCAL_STORAGE_KEY = 'lar_harmonia_assistidos_store';
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function isValidUUID(str?: string): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
+
 // Dados iniciais representativos e realistas da Fundação Lar Harmonia
 export const INITIAL_ASSISTIDOS: Assistido[] = [
   {
@@ -260,7 +276,9 @@ export const assistidosService = {
 
   // 2. Inserir novo assistido
   async insert(item: Record<string, any>): Promise<Assistido> {
-    const newId = item.id || `ass-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const isProvidedIdValid = isValidUUID(item.id);
+    const generatedId = generateUUID();
+    const newId = isProvidedIdValid ? item.id : generatedId;
     const nowIso = new Date().toISOString();
     const fullRecord: Assistido = {
       ...(item as Assistido),
@@ -270,22 +288,29 @@ export const assistidosService = {
       nome_completo: item.nome_completo || ''
     };
 
-    // Tenta gravar no Supabase se houver conexão
-    try {
-      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-      if (hasUrl) {
-        const { data, error } = await supabase.from('assistidos').insert([fullRecord]).select();
-        if (!error && data && data[0]) {
-          const current = getStoredAssistidos();
-          saveStoredAssistidos([data[0], ...current.filter((a) => a.id !== data[0].id)]);
-          return data[0];
-        }
+    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+    if (hasUrl) {
+      // Cria o payload limpo para o Supabase
+      const supabasePayload: Record<string, any> = { ...fullRecord };
+      // Se não for um UUID válido fornecido explicitamente, omitimos o campo 'id'
+      // para permitir que o PostgreSQL gere o UUID automaticamente via gen_random_uuid()
+      if (!isProvidedIdValid) {
+        delete supabasePayload.id;
       }
-    } catch (err) {
-      console.warn('Supabase indisponível no insert, salvando localmente:', err);
+
+      const { data, error } = await supabase.from('assistidos').insert([supabasePayload]).select();
+      if (error) {
+        console.error('Erro ao inserir assistido no Supabase:', error);
+        throw new Error(error.message || 'Erro ao registrar assistido no Supabase.');
+      }
+      if (data && data[0]) {
+        const current = getStoredAssistidos();
+        saveStoredAssistidos([data[0], ...current.filter((a) => a.id !== data[0].id)]);
+        return data[0];
+      }
     }
 
-    // Salva localmente
+    // Salva localmente caso não haja conexão/URL do Supabase configurada
     const current = getStoredAssistidos();
     const updated = [fullRecord, ...current.filter((a) => a.id !== fullRecord.id)];
     saveStoredAssistidos(updated);
@@ -299,7 +324,7 @@ export const assistidosService = {
 
     try {
       const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-      if (hasUrl) {
+      if (hasUrl && isValidUUID(id)) {
         const { data, error } = await supabase
           .from('assistidos')
           .update({ ...updates, updated_at: nowIso })
@@ -334,7 +359,7 @@ export const assistidosService = {
   async delete(id: string): Promise<void> {
     try {
       const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-      if (hasUrl) {
+      if (hasUrl && isValidUUID(id)) {
         await supabase.from('assistidos').delete().eq('id', id);
       }
     } catch (err) {

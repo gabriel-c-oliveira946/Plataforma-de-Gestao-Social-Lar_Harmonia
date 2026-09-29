@@ -712,11 +712,12 @@ export async function atualizarCargoMembro({
 
     // 3. Atualizar na tabela profiles do Supabase
     try {
+      const enumRole = mapCargoToEnumRole(role || finalCargo);
       const { error: profErr } = await supabase
         .from('profiles')
         .update({
           cargo: finalCargo,
-          role: finalCargo
+          role: enumRole
         })
         .eq('id', id);
 
@@ -794,15 +795,24 @@ export async function desativarMembroEquipe(
 
     // 3. Atualizar na tabela profiles do Supabase como inativo
     try {
-      await supabase
+      let { error: profErr } = await supabase
         .from('profiles')
         .update({
           cargo: 'Inativo',
           status: 'inativo',
-          ativo: false,
           role: 'recepcao'
         })
         .eq('id', id);
+
+      if (profErr && profErr.message?.includes('status')) {
+        await supabase
+          .from('profiles')
+          .update({
+            cargo: 'Inativo',
+            role: 'recepcao'
+          })
+          .eq('id', id);
+      }
     } catch (e) {
       console.warn('Não foi possível atualizar status em profiles no Supabase:', e);
     }
@@ -928,15 +938,24 @@ export async function reativarMembroEquipe(
 
     // 4. Atualizar na tabela profiles do Supabase
     try {
-      await supabase
+      let { error: profErr } = await supabase
         .from('profiles')
         .update({
           status: 'ativo',
-          ativo: true,
           cargo: mapRoleToCargoFormatado(restoredCargo || restoredRole),
           role: mapCargoToEnumRole(restoredRole)
         })
         .eq('id', id);
+
+      if (profErr && profErr.message?.includes('status')) {
+        await supabase
+          .from('profiles')
+          .update({
+            cargo: mapRoleToCargoFormatado(restoredCargo || restoredRole),
+            role: mapCargoToEnumRole(restoredRole)
+          })
+          .eq('id', id);
+      }
     } catch (e) {
       console.warn('Não foi possível atualizar status em profiles no Supabase:', e);
     }

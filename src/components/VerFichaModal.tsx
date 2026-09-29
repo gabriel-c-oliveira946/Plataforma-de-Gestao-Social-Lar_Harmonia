@@ -1829,12 +1829,12 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
               <Award className="w-3.5 h-3.5 text-amber-500" />
               <span>5. Avaliação 4 Meses</span>
               {isPendente4Meses ? (
-                <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                  ⚠️ Pendente
+                <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  Pendente
                 </span>
               ) : existingAvaliacao ? (
-                <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                  ✓ Realizada
+                <span className="bg-emerald-700 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  Realizada
                 </span>
               ) : null}
             </button>
@@ -2017,8 +2017,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                       <div className="flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                            ⚠️ Atingiu 4 Meses (Avaliação Pendente)
+                          <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider font-heading">
+                            Atingiu 4 Meses (Avaliação Pendente)
                           </h4>
                           <p className="text-xs text-amber-800 mt-0.5">
                             Este assistido ingressou em{' '}
@@ -2947,7 +2947,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                         >
                           <Save className="w-4 h-4" />
                           <span>
-                            {savingAvaliacao ? 'Salvando Avaliação...' : 'Salvar Avaliação no Supabase'}
+                            {savingAvaliacao ? 'Salvando Avaliação...' : 'Salvar Avaliação'}
                           </span>
                         </button>
                       </div>
@@ -2965,8 +2965,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           {/* Seção Obrigatória de Auditoria e Operador */}
           <div className="space-y-1.5 py-0.5">
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700">
-              <span className="font-semibold text-gray-600 flex items-center gap-1">
-                <span>👤</span> Cadastrado por:
+              <span className="font-semibold text-gray-600 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-gray-500" /> Cadastrado por:
               </span>
               <strong className="text-gray-900 font-bold">
                 {operadorCadastro.nome}
@@ -2979,8 +2979,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700">
-              <span className="font-semibold text-gray-600 flex items-center gap-1">
-                <span>✏️</span> Última alteração por:
+              <span className="font-semibold text-gray-600 flex items-center gap-1.5">
+                <Edit3 className="w-3.5 h-3.5 text-gray-500" /> Última alteração por:
               </span>
               <strong className="text-gray-900 font-bold">
                 {operadorAtualizacao.nome}
@@ -3392,7 +3392,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           ) : (
             <p className="text-gray-500 italic">
               {isPendente4Meses
-                ? '⚠️ Assistido com 4 meses de acompanhamento completos - Avaliação Pendente de Registro.'
+                ? 'Assistido com 4 meses de acompanhamento completos - Avaliação Pendente de Registro.'
                 : 'Assistido em período regular de acompanhamento (< 120 dias). Avaliação de 4 meses ainda não realizada.'}
             </p>
           )}

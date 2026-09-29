@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +45,9 @@ export default function CadastrarAssistido() {
   } | null>(null);
   const [redirectCountdown, setRedirectCountdown] = useState<number>(4);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Trava Anti-Duplo Clique / Criação Precoce na Aba 5
+  const lastTabChangeRef = useRef<number>(Date.now());
 
   // Auto-redirecionamento com contagem regressiva ao cadastrar com sucesso
   useEffect(() => {
@@ -135,6 +138,7 @@ export default function CadastrarAssistido() {
   const handleResetForm = () => {
     setFormData(INITIAL_CADASTRO_FORM);
     handleRemoveFoto();
+    lastTabChangeRef.current = Date.now();
     setActiveTab(1);
     setSuccess(false);
     setSuccessData(null);
@@ -150,6 +154,7 @@ export default function CadastrarAssistido() {
       return;
     }
     setErrorMsg(null);
+    lastTabChangeRef.current = Date.now();
     setActiveTab((prev) => Math.min(5, prev + 1));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -164,10 +169,18 @@ export default function CadastrarAssistido() {
       return;
     }
 
+    // Trava Anti-Duplo Clique / Criação Precoce na Aba 5:
+    // Se a transição para a Aba 5 ocorreu há menos de 600ms, bloqueia submissão prematura
+    const timeSinceTabChange = Date.now() - lastTabChangeRef.current;
+    if (timeSinceTabChange < 600) {
+      return;
+    }
+
     // Prevenção contra múltiplos cliques
     if (submitting) return;
 
     if (!formData.nome_completo.trim()) {
+      lastTabChangeRef.current = Date.now();
       setActiveTab(1);
       setErrorMsg('O campo "Nome Completo" é obrigatório.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -658,6 +671,7 @@ export default function CadastrarAssistido() {
                   type="button"
                   onClick={() => {
                     setErrorMsg(null);
+                    lastTabChangeRef.current = Date.now();
                     setActiveTab(tab.id);
                   }}
                   className={`p-3.5 text-left transition flex items-center gap-3 cursor-pointer ${
@@ -730,6 +744,7 @@ export default function CadastrarAssistido() {
                 <button
                   type="button"
                   onClick={() => {
+                    lastTabChangeRef.current = Date.now();
                     setActiveTab((prev) => Math.max(1, prev - 1));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}

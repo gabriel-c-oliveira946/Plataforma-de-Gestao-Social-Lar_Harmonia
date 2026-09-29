@@ -116,7 +116,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       };
 
       try {
-        await supabase.from('profiles').upsert([newRecord]);
+        const { ativo, ...dbPayload } = newRecord;
+        await supabase.from('profiles').upsert([dbPayload]);
       } catch (upsertErr) {
         console.warn('Auto-registro na tabela profiles:', upsertErr);
       }
