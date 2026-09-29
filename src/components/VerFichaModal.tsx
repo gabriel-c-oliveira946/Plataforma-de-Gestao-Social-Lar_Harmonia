@@ -47,6 +47,7 @@ import {
   Award
 } from 'lucide-react';
 import { supabase } from '../lib/supabase/client';
+import { assistidosService } from '../services/assistidosService';
 import {
   CadastroFormData,
   INITIAL_CADASTRO_FORM
@@ -1200,22 +1201,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         payload.atualizado_por = authUserId;
       }
 
-      // Executa o update no Supabase
-      const { error } = await supabase
-        .from('assistidos')
-        .update(payload)
-        .eq('id', assistido.id);
-
-      if (error) {
-        throw error;
-      }
-
-      const updatedRecord: Assistido = {
-        ...assistido,
-        ...payload,
-        updated_at: nowIso,
-        atualizado_por: authUserId || assistido.atualizado_por
-      };
+      // Executa o update com fallback seguro
+      const updatedRecord = await assistidosService.update(assistido.id, payload);
 
       onAssistidoUpdated(updatedRecord);
       setIsEditingData(false);
@@ -1310,22 +1297,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         updatePayload.atualizado_por = authUserId;
       }
 
-      const { error } = await supabase
-        .from('assistidos')
-        .update(updatePayload)
-        .eq('id', assistido.id);
-
-      if (error) {
-        throw error;
-      }
-
-      const nowIso = new Date().toISOString();
-      const updatedRecord: Assistido = {
-        ...assistido,
-        ...updatePayload,
-        updated_at: nowIso,
-        atualizado_por: authUserId || assistido.atualizado_por
-      };
+      const updatedRecord = await assistidosService.update(assistido.id, updatePayload);
 
       onAssistidoUpdated(updatedRecord);
       setIsEditingAvaliacao(false);
@@ -1635,7 +1607,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
         
         {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4.5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
+        <div className="px-6 py-4.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80">
           <div className="flex items-center gap-4">
             <div className="relative">
               {fotoPreview || assistido.foto_url ? (
@@ -1645,7 +1617,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   className="w-13 h-13 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm ring-2 ring-emerald-500/20"
                 />
               ) : (
-                <div className="w-13 h-13 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                <div className="w-13 h-13 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
                   {assistido.nome_completo ? assistido.nome_completo.charAt(0).toUpperCase() : 'A'}
                 </div>
               )}
@@ -1653,22 +1625,22 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
 
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
+                <h3 className="font-heading text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                   {assistido.nome_completo}
                 </h3>
                 {renderStatusBadge(
                   isEditingData ? editFormData.status_atendimento : assistido.status_curso
                 )}
                 {isEditingData && (
-                  <span className="px-2.5 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full uppercase tracking-wider shadow-2xs">
+                  <span className="px-2.5 py-0.5 bg-amber-600 text-white text-[10px] font-black rounded-full uppercase tracking-wider shadow-2xs">
                     Modo Edição Ativo
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
                 <span>
                   Oficina:{' '}
-                  <strong className="text-gray-800 dark:text-slate-200 font-bold">
+                  <strong className="text-slate-800 dark:text-slate-200 font-bold">
                     {isEditingData
                       ? editFormData.oficina_pretendida
                       : assistido.curso_pretendido || 'Geral'}
@@ -1690,9 +1662,9 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                       setActiveTab('avaliacao');
                       setIsEditingAvaliacao(true);
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer ${
                       isPendente4Meses
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
                         : 'bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
                     }`}
                     title="Registrar Avaliação de 4 Meses do Assistido"
@@ -1710,7 +1682,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
                     title="Editar informações completas nas 5 Abas"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -1718,10 +1690,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   </button>
                 ) : (
                   <span
-                    className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700"
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
                     title="Perfil Recepção tem permissão apenas para cadastro inicial e consulta"
                   >
-                    <Lock className="w-3.5 h-3.5 text-gray-400" />
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
                     Consulta (Recepção)
                   </span>
                 )}
@@ -1732,7 +1704,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={savingEdit}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Modo Leitura</span>
@@ -1741,7 +1713,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   type="button"
                   onClick={handleSaveFullEdit}
                   disabled={savingEdit}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{savingEdit ? 'Salvando...' : 'Salvar Alterações'}</span>
@@ -1753,16 +1725,16 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
               type="button"
               onClick={() => window.print()}
               title="Imprimir Ficha Completa A4"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-xl transition border border-gray-300 dark:border-slate-700 shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-lg transition border border-slate-300 dark:border-slate-700 shadow-2xs cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <Printer className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               <span>Imprimir Ficha</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
               title="Fechar Janela"
             >
               <X className="w-5 h-5" />
@@ -1773,13 +1745,13 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         {/* Notificações no Topo */}
         {(saveSuccessMsg || avaliacaoSuccessMsg) && (
           <div className="px-6 py-2.5 bg-emerald-50 dark:bg-emerald-950/60 border-b border-emerald-100 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-200 flex items-center gap-2 animate-fadeIn">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
             {saveSuccessMsg || avaliacaoSuccessMsg}
           </div>
         )}
         {(saveErrorMsg || avaliacaoErrorMsg) && (
           <div className="px-6 py-2.5 bg-red-50 dark:bg-red-950/60 border-b border-red-100 dark:border-red-800 text-xs font-semibold text-red-800 dark:text-red-200 flex items-center gap-2 animate-fadeIn">
-            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
             {saveErrorMsg || avaliacaoErrorMsg}
           </div>
         )}
@@ -1787,14 +1759,14 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         {/* BARRA DE NAVEGAÇÃO DE ABAS */}
         {!isEditingData ? (
           /* Abas do Modo de Visualização / Leitura */
-          <div className="px-6 border-b border-gray-200 dark:border-slate-800 bg-gray-50/70 dark:bg-slate-800 flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-2.5">
+          <div className="px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-2.5">
             <button
               type="button"
               onClick={() => setActiveTab('geral')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'geral'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               Visão Geral 360°
@@ -1802,10 +1774,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('identificacao')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'identificacao'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               1. Identificação Civil
@@ -1813,10 +1785,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('trabalho')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'trabalho'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               2. Trabalho & Renda
@@ -1824,10 +1796,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('saude')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'saude'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               3. Saúde & Vulnerabilidades
@@ -1835,10 +1807,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('oficina')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'oficina'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               4. Oficinas & Percepção FLH
@@ -1846,12 +1818,12 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('avaliacao')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'avaliacao'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-700 text-white shadow-xs'
                   : isPendente4Meses
                   ? 'text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 font-extrabold'
-                  : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200/60 dark:hover:bg-slate-700/60'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
               }`}
             >
               <Award className="w-3.5 h-3.5 text-amber-500" />
@@ -1861,7 +1833,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   ⚠️ Pendente
                 </span>
               ) : existingAvaliacao ? (
-                <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                <span className="bg-emerald-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                   ✓ Realizada
                 </span>
               ) : null}
@@ -1879,7 +1851,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                     key={tab.id}
                     type="button"
                     onClick={() => setEditActiveTab(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                       isCurrent
                         ? 'bg-amber-600 text-white shadow-xs'
                         : 'text-amber-900 dark:text-amber-200 hover:bg-amber-100/70 dark:hover:bg-amber-900/40'

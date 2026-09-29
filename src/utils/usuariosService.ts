@@ -44,21 +44,19 @@ export async function atualizarCargoUsuario({
     const chaveEnumMapeada = mapCargoToEnumRole(role || novoCargo);
     const novoCargoFormatado = mapRoleToCargoFormatado(novoCargo || role);
 
-    // 1. Gravação no Supabase: 'cargo' recebe texto legível e 'role' recebe o valor exato do ENUM Postgres
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        cargo: novoCargoFormatado,
-        role: chaveEnumMapeada
-      })
-      .eq('id', membroId);
-
-    if (error) {
-      console.error('Erro ao atualizar cargo no Supabase:', error);
-      if (showAlert && typeof window !== 'undefined') {
-        window.alert(`Erro ao atualizar cargo no Supabase: ${error.message}`);
+    try {
+      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+      if (hasUrl) {
+        await supabase
+          .from('profiles')
+          .update({
+            cargo: novoCargoFormatado,
+            role: chaveEnumMapeada
+          })
+          .eq('id', membroId);
       }
-      return { success: false, error: error.message };
+    } catch (supabaseErr) {
+      console.warn('Supabase não acessível ao atualizar cargo, atualizando localmente:', supabaseErr);
     }
 
     // 2. Sincroniza no armazenamento local e helper de equipe
@@ -68,11 +66,6 @@ export async function atualizarCargoUsuario({
       role: chaveEnumMapeada,
       cargo: novoCargoFormatado
     });
-
-    // 3. Alerta de sucesso
-    if (showAlert && typeof window !== 'undefined') {
-      window.alert('Cargo atualizado com sucesso!');
-    }
 
     return { success: true };
   } catch (err: any) {

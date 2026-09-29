@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { assistidosService } from '../services/assistidosService';
 import { VerFichaModal, Assistido } from '../components/VerFichaModal';
 export type { Assistido };
 import {
@@ -231,20 +232,13 @@ export default function Dashboard() {
   // Identificação se o usuário logado é Admin (Apenas Diretoria/Admin tem permissão de exclusão)
   const isAdmin = canDelete;
 
-  // Carregar assistidos do Supabase (executado sempre ao carregar o Dashboard)
+  // Carregar assistidos (com fallback offline seguro)
   const fetchAssistidos = async (showLoading: boolean = true) => {
     const shouldShow = typeof showLoading === 'boolean' ? showLoading : true;
     if (shouldShow) setLoading(true);
     setErrorMsg(null);
     try {
-      const { data, error } = await supabase
-        .from('assistidos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
+      const data = await assistidosService.getAll();
       setAssistidos(data || []);
     } catch (err: any) {
       console.error('Erro ao carregar assistidos:', err);
@@ -258,7 +252,7 @@ export default function Dashboard() {
     // 1. Busca direta no banco sempre que o Dashboard for carregado
     fetchAssistidos(true);
 
-    // 2. Re-executa sempre que a aba ganhar foco (garante que remoções no Supabase Table Editor reflitam imediatamente)
+    // 2. Re-executa sempre que a aba ganhar foco
     const handleFocus = () => {
       fetchAssistidos(false);
     };
@@ -271,31 +265,43 @@ export default function Dashboard() {
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // 3. Sincronização em tempo real via Supabase Realtime (INSERT, UPDATE, DELETE no banco)
-    const channel = supabase
-      .channel('assistidos-realtime-dashboard')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'assistidos' },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const deletedId = (payload.old as any)?.id;
-            if (deletedId) {
-              setAssistidos((prev) => prev.filter((a) => a.id !== deletedId));
-            } else {
-              fetchAssistidos(false);
+    // 3. Sincronização em tempo real via Supabase Realtime se configurado
+    let channel: any = null;
+    try {
+      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+      if (hasUrl) {
+        channel = supabase
+          .channel('assistidos-realtime-dashboard')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'assistidos' },
+            (payload) => {
+              if (payload.eventType === 'DELETE') {
+                const deletedId = (payload.old as any)?.id;
+                if (deletedId) {
+                  setAssistidos((prev) => prev.filter((a) => a.id !== deletedId));
+                } else {
+                  fetchAssistidos(false);
+                }
+              } else {
+                fetchAssistidos(false);
+              }
             }
-          } else {
-            fetchAssistidos(false);
-          }
-        }
-      )
-      .subscribe();
+          )
+          .subscribe();
+      }
+    } catch (channelErr) {
+      console.warn('Realtime channel não disponível:', channelErr);
+    }
 
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }, []);
 
@@ -872,12 +878,7 @@ export default function Dashboard() {
     if (!assistidoToDelete || !isAdmin) return;
     setDeleting(true);
     try {
-      const { error } = await supabase
-        .from('assistidos')
-        .delete()
-        .eq('id', assistidoToDelete.id);
-
-      if (error) throw error;
+      await assistidosService.delete(assistidoToDelete.id);
 
       setAssistidos((prev) => prev.filter((a) => a.id !== assistidoToDelete.id));
       if (selectedAssistido?.id === assistidoToDelete.id) {
@@ -900,10 +901,10 @@ export default function Dashboard() {
         {/* Cabeçalho da Página */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight font-heading">
               Assistidos Lar Harmonia
             </h1>
-            <p className="text-gray-600 dark:text-slate-400 text-sm mt-1">
+            <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
               Consulte, acompanhe e gerencie as fichas sociais dos assistidos e suas oficinas.
             </p>
           </div>
@@ -913,17 +914,17 @@ export default function Dashboard() {
               onClick={() => fetchAssistidos(true)}
               disabled={loading}
               title="Atualizar lista"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs transition cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 text-gray-500 dark:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Atualizar</span>
             </button>
 
             <Link
               to="/cadastrar"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg shadow-xs transition shadow-emerald-600/20"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-xs transition"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Novo Cadastro
             </Link>
           </div>
@@ -931,9 +932,9 @@ export default function Dashboard() {
 
         {/* Mensagem de Notificação de Sucesso */}
         {successMsg && (
-          <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-xs flex items-center justify-between text-emerald-800 dark:text-emerald-300 animate-in fade-in">
+          <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl shadow-xs flex items-center justify-between text-emerald-900 dark:text-emerald-300 animate-in fade-in">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
               <span className="text-sm font-semibold">{successMsg}</span>
             </div>
             <button
@@ -954,7 +955,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => fetchAssistidos(true)}
-              className="text-xs bg-white dark:bg-slate-800 text-red-700 dark:text-red-400 font-semibold px-3 py-1 border border-red-300 dark:border-red-800 rounded-md hover:bg-red-50 dark:hover:bg-slate-700 cursor-pointer"
+              className="text-xs bg-white dark:bg-slate-800 text-red-700 dark:text-red-400 font-semibold px-3 py-1 border border-red-300 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-slate-700 cursor-pointer"
             >
               Tentar Novamente
             </button>
@@ -969,7 +970,7 @@ export default function Dashboard() {
               setFilterAvaliacao('⚠️ Pendentes de Avaliação (>= 4 Meses)');
               setShowFilters(true);
             }}
-            className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-between ${
+            className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer shadow-xs hover:shadow-sm flex items-center justify-between ${
               filterAvaliacao === '⚠️ Pendentes de Avaliação (>= 4 Meses)'
                 ? 'bg-amber-100/90 dark:bg-amber-950/60 border-amber-400 dark:border-amber-600 ring-2 ring-amber-400'
                 : 'bg-amber-50/90 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 hover:border-amber-300 dark:hover:border-amber-700'
@@ -977,22 +978,22 @@ export default function Dashboard() {
             title="Clique para filtrar apenas os assistidos com 120+ dias ativos sem avaliação de 4 meses"
           >
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">
-                <ClipboardList className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 dark:text-amber-300 uppercase tracking-wider font-heading">
+                <ClipboardList className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                 <span>Avaliação de 4 Meses</span>
               </div>
-              <div className="text-2xl font-black text-amber-950 dark:text-amber-100">
+              <div className="text-2xl font-bold text-amber-950 dark:text-amber-100 font-heading">
                 📋 {metrics.pendentes4Meses}{' '}
                 <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                   {metrics.pendentes4Meses === 1 ? 'Pendente' : 'Pendentes'}
                 </span>
               </div>
-              <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium">
+              <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
                 📋 {metrics.pendentes4Meses} Pendentes de Avaliação de 4 Meses
               </p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-6 h-6 text-amber-700 dark:text-amber-400" />
+            <div className="w-11 h-11 rounded-lg bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-700 dark:text-amber-400" />
             </div>
           </div>
 
@@ -1002,20 +1003,20 @@ export default function Dashboard() {
               setFilterAvaliacao('Todos');
               setFilterStatus('Todos os Status');
             }}
-            className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-500 shadow-xs hover:shadow-md transition cursor-pointer flex items-center justify-between"
+            className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shadow-xs hover:shadow-sm transition cursor-pointer flex items-center justify-between"
             title="Total de fichas cadastradas no Lar Harmonia"
           >
             <div className="space-y-1">
-              <div className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
                 Total de Assistidos
               </div>
-              <div className="text-2xl font-black text-gray-900 dark:text-slate-100">
+              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-heading">
                 {metrics.total}
               </div>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">Cadastrados no Lar Harmonia</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Cadastrados no Lar Harmonia</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5" />
             </div>
           </div>
 
@@ -1025,24 +1026,24 @@ export default function Dashboard() {
               setFilterStatus('Apenas Ativos');
               setShowFilters(true);
             }}
-            className={`p-4 rounded-2xl border transition shadow-xs hover:shadow-md cursor-pointer flex items-center justify-between ${
+            className={`p-4 rounded-xl border transition shadow-xs hover:shadow-sm cursor-pointer flex items-center justify-between ${
               filterStatus === 'Apenas Ativos'
-                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-400 ring-2 ring-emerald-400'
-                : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500'
+                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 ring-2 ring-emerald-500/20'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500'
             }`}
             title="Assistidos ativos em acompanhamento na FLH"
           >
             <div className="space-y-1">
-              <div className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
                 Em Acompanhamento
               </div>
-              <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+              <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 font-heading">
                 {metrics.ativosAcompanhamento}
               </div>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">Assistidos com status ativo</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Assistidos com status ativo</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5" />
             </div>
           </div>
 
@@ -1052,34 +1053,34 @@ export default function Dashboard() {
               setFilterAvaliacao('✅ Avaliação Concluída');
               setShowFilters(true);
             }}
-            className={`p-4 rounded-2xl border transition shadow-xs hover:shadow-md cursor-pointer flex items-center justify-between ${
+            className={`p-4 rounded-xl border transition shadow-xs hover:shadow-sm cursor-pointer flex items-center justify-between ${
               filterAvaliacao === '✅ Avaliação Concluída'
-                ? 'bg-teal-50 dark:bg-teal-950/50 border-teal-400 ring-2 ring-teal-400'
-                : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-500'
+                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 ring-2 ring-emerald-500/20'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
             }`}
             title="Assistidos com avaliação de 4 meses concluída"
           >
             <div className="space-y-1">
-              <div className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-heading">
                 Avaliações Concluídas
               </div>
-              <div className="text-2xl font-black text-teal-800 dark:text-teal-300">
+              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-heading">
                 {metrics.avaliacoesConcluidas}
               </div>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">Avaliações de 4 meses salvas</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Avaliações de 4 meses salvas</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
         </div>
 
         {/* BARRA DE BUSCA E FILTROS */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs p-4 sm:p-5 mb-6 space-y-4 transition-colors">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs p-4 sm:p-5 mb-6 space-y-4 transition-colors">
           <div className="flex flex-col lg:flex-row gap-3">
             {/* Campo de Busca Rápida (Nome, CPF ou RG) */}
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-400">
                 <Search className="w-4 h-4" />
               </div>
               <input
@@ -1087,13 +1088,13 @@ export default function Dashboard() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por Nome Completo, CPF ou RG..."
-                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                className="w-full pl-10 pr-9 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 outline-none transition"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   title="Limpar busca textual"
                 >
                   <X className="w-4 h-4" />
@@ -1103,21 +1104,21 @@ export default function Dashboard() {
 
             {/* Campo de Filtro Dinâmico por Localidade (Bairro / Cidade) */}
             <div className="relative flex-1 lg:max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-slate-400">
-                <MapPin className="w-4 h-4 text-rose-500" />
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-400">
+                <MapPin className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               </div>
               <input
                 type="text"
                 value={filterLocalidade}
                 onChange={(e) => setFilterLocalidade(e.target.value)}
                 placeholder="Buscar por Bairro / Localidade..."
-                className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-400 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                className="w-full pl-10 pr-9 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 outline-none transition"
               />
               {filterLocalidade && (
                 <button
                   type="button"
                   onClick={() => setFilterLocalidade('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200 cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                   title="Limpar filtro de localidade"
                 >
                   <X className="w-4 h-4" />
@@ -1130,16 +1131,16 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setShowFilters(!showFilters)}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer ${
+                className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold border transition cursor-pointer ${
                   showFilters || activeFiltersCount > 0
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 shadow-2xs'
-                    : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
-                <SlidersHorizontal className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                 <span>Painel de Filtros</span>
                 {activeFiltersCount > 0 && (
-                  <span className="w-5 h-5 flex items-center justify-center bg-emerald-600 dark:bg-emerald-500 text-white rounded-full text-[11px] font-bold">
+                  <span className="w-4 h-4 flex items-center justify-center bg-emerald-700 text-white rounded-full text-[10px] font-bold">
                     {activeFiltersCount}
                   </span>
                 )}
@@ -1150,28 +1151,28 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-red-700 dark:hover:text-red-400 transition cursor-pointer"
                   title="Restaurar todos os filtros"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Limpar</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* PAINEL EXPANSÍVEL DE FILTROS AVANÇADOS (EXPANDIDO POR PADRÃO) */}
+          {/* PAINEL EXPANSÍVEL DE FILTROS AVANÇADOS */}
           {showFilters && (
-            <div className="pt-4 border-t border-gray-100 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 animate-in fade-in duration-200">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 animate-in fade-in duration-200">
               {/* 1. Composição Familiar */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Composição Familiar
                 </label>
                 <select
                   value={filterComposicao}
                   onChange={(e) => setFilterComposicao(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {COMPOSICAO_LIST.map((c) => (
                     <option key={c} value={c} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1183,13 +1184,13 @@ export default function Dashboard() {
 
               {/* 2. Filhos */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Filhos
                 </label>
                 <select
                   value={filterFilhos}
                   onChange={(e) => setFilterFilhos(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {FILHOS_LIST.map((f) => (
                     <option key={f} value={f} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1201,13 +1202,13 @@ export default function Dashboard() {
 
               {/* 3. Faixa de Renda */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Faixa de Renda
                 </label>
                 <select
                   value={filterFaixaRenda}
                   onChange={(e) => setFilterFaixaRenda(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {FAIXAS_RENDA_LIST.map((r) => (
                     <option key={r} value={r} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1219,13 +1220,13 @@ export default function Dashboard() {
 
               {/* 4. Saúde na Família */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Saúde na Família
                 </label>
                 <select
                   value={filterSaudeFamilia}
                   onChange={(e) => setFilterSaudeFamilia(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {SAUDE_FAMILIA_LIST.map((s) => (
                     <option key={s} value={s} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1237,13 +1238,13 @@ export default function Dashboard() {
 
               {/* 5. Serviços Utilizados na FLH */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Serviços da FLH Utilizados
                 </label>
                 <select
                   value={filterServicosFLH}
                   onChange={(e) => setFilterServicosFLH(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {SERVICOS_FLH_LIST.map((s) => (
                     <option key={s} value={s} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1255,13 +1256,13 @@ export default function Dashboard() {
 
               {/* 6. Ocupação / Trabalho */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Ocupação / Trabalho
                 </label>
                 <select
                   value={filterOcupacao}
                   onChange={(e) => setFilterOcupacao(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {OCUPACAO_LIST.map((o) => (
                     <option key={o} value={o} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1273,13 +1274,13 @@ export default function Dashboard() {
 
               {/* 7. Acesso à Internet */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Acesso à Internet
                 </label>
                 <select
                   value={filterInternet}
                   onChange={(e) => setFilterInternet(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {INTERNET_LIST.map((i) => (
                     <option key={i} value={i} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1291,13 +1292,13 @@ export default function Dashboard() {
 
               {/* 8. Oficina / Curso Pretendido */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Oficina / Curso
                 </label>
                 <select
                   value={filterOficina}
                   onChange={(e) => setFilterOficina(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {OFICINAS_LIST.map((o) => (
                     <option key={o} value={o} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1309,13 +1310,13 @@ export default function Dashboard() {
 
               {/* 9. Status Atendimento */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Status do Acompanhamento
                 </label>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {STATUS_LIST.map((s) => (
                     <option key={s} value={s} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1326,14 +1327,14 @@ export default function Dashboard() {
               </div>
 
               {/* 10. Filtro Dedicado: Avaliação de 4 Meses */}
-              <div className="bg-amber-50/70 dark:bg-amber-950/30 p-2 rounded-xl border border-amber-200 dark:border-amber-800">
-                <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1">
+              <div className="bg-amber-50/70 dark:bg-amber-950/30 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
+                <label className="block text-xs font-semibold text-amber-900 dark:text-amber-300 uppercase tracking-wider mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1 font-heading">
                     <ClipboardList className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-                    Avaliação de 4 Meses
+                    Avaliação 4 Meses
                   </span>
                   {metrics.pendentes4Meses > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
+                    <span className="px-1.5 py-0.5 rounded-full bg-amber-600 text-white text-[10px] font-bold leading-none">
                       {metrics.pendentes4Meses}
                     </span>
                   )}
@@ -1341,7 +1342,7 @@ export default function Dashboard() {
                 <select
                   value={filterAvaliacao}
                   onChange={(e) => setFilterAvaliacao(e.target.value)}
-                  className="w-full p-1.5 bg-white dark:bg-slate-700 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full p-1.5 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-md text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none"
                 >
                   {FILTRO_AVALIACAO_4_MESES.map((a) => (
                     <option key={a} value={a} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1353,13 +1354,13 @@ export default function Dashboard() {
 
               {/* 11. Ano de Entrada */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                  Ano de Ingresso / Entrada
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Ano de Ingresso
                 </label>
                 <select
                   value={filterAno}
                   onChange={(e) => setFilterAno(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 >
                   {ANOS_LIST.map((a) => (
                     <option key={a} value={a} className="dark:bg-slate-800 dark:text-slate-100">
@@ -1371,27 +1372,27 @@ export default function Dashboard() {
 
               {/* 12. Data de entrada depois de: */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Data de entrada depois de:
                 </label>
                 <input
                   type="date"
                   value={filterDataInicial}
                   onChange={(e) => setFilterDataInicial(e.target.value)}
-                  className="w-full p-1.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 />
               </div>
 
               {/* 13. Data de entrada antes de: */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Data de entrada antes de:
                 </label>
                 <input
                   type="date"
                   value={filterDataFinal}
                   onChange={(e) => setFilterDataFinal(e.target.value)}
-                  className="w-full p-1.5 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-xs font-medium text-gray-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none"
+                  className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-emerald-700 outline-none"
                 />
               </div>
             </div>
@@ -1400,10 +1401,10 @@ export default function Dashboard() {
 
         {/* BARRA DE CONTAGEM E RESUMO DE RESULTADOS */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 px-1">
-          <div className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Exibindo <span className="font-bold text-gray-900 dark:text-slate-100">{filteredAssistidos.length}</span> assistidos encontrados
+          <div className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+            Exibindo <span className="font-bold text-slate-900 dark:text-slate-100">{filteredAssistidos.length}</span> assistidos encontrados
             {assistidos.length !== filteredAssistidos.length && (
-              <span className="text-gray-500 dark:text-slate-400 text-xs ml-1.5">
+              <span className="text-slate-500 dark:text-slate-400 text-xs ml-1.5">
                 (de um total de {assistidos.length} cadastrados)
               </span>
             )}
@@ -1415,27 +1416,27 @@ export default function Dashboard() {
               type="button"
               onClick={handleExportCSV}
               disabled={filteredAssistidos.length === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 active:bg-emerald-800 disabled:bg-gray-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
               title="Exportar assistidos da listagem filtrada para planilha CSV / Excel"
             >
               <Download className="w-3.5 h-3.5 shrink-0" />
               <span>Exportar Planilha</span>
               {filteredAssistidos.length > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 bg-emerald-700 text-emerald-100 rounded-full text-[10px] font-semibold">
+                <span className="ml-0.5 px-1.5 py-0.2 bg-emerald-800 text-emerald-100 rounded-full text-[10px] font-semibold">
                   {filteredAssistidos.length}
                 </span>
               )}
             </button>
 
             {/* Alternar Visualização: Cards ou Tabela */}
-            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-1 rounded-xl shadow-2xs self-start sm:self-auto">
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 rounded-lg shadow-2xs self-start sm:self-auto">
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
                   viewMode === 'cards'
-                    ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-2xs'
-                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -1444,10 +1445,10 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition cursor-pointer ${
                   viewMode === 'table'
-                    ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-2xs'
-                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -1483,30 +1484,30 @@ export default function Dashboard() {
 
         {/* LISTA VAZIA */}
         {!loading && filteredAssistidos.length === 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 p-12 text-center shadow-xs transition-colors">
-            <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8" />
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-xs transition-colors">
+            <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 font-heading">
               Nenhum assistido encontrado com os filtros selecionados
             </h3>
-            <p className="text-gray-500 dark:text-slate-400 text-sm max-w-md mx-auto mt-1 mb-6">
+            <p className="text-slate-500 dark:text-slate-400 text-xs max-w-md mx-auto mt-1 mb-6">
               Tente redefinir os filtros de pesquisa ou cadastre um novo assistido na plataforma.
             </p>
             <div className="flex justify-center gap-3">
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 text-sm font-semibold rounded-lg transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 Limpar Filtros
               </button>
               <Link
                 to="/cadastrar"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition shadow-emerald-600/20 shadow-xs"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg transition shadow-xs"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 Cadastrar Assistido
               </Link>
             </div>
@@ -1515,7 +1516,7 @@ export default function Dashboard() {
 
         {/* GRID DE CARDS DE ASSISTIDOS (Modo Cards) */}
         {!loading && filteredAssistidos.length > 0 && viewMode === 'cards' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredAssistidos.map((assistido) => {
               const isSituacaoRua =
                 assistido.tipo_moradia === 'Em situação de rua' ||
@@ -1524,10 +1525,10 @@ export default function Dashboard() {
               return (
                 <div
                   key={assistido.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-600 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden group"
+                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-600 dark:hover:border-emerald-500 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between overflow-hidden group"
                 >
                   {/* Conteúdo Principal do Card */}
-                  <div className="p-5 space-y-4">
+                  <div className="p-5 space-y-3.5">
                     {/* Topo: Foto / Avatar + Nome + Status */}
                     <div className="flex items-start gap-3.5">
                       {/* Foto ou Avatar padrão */}
@@ -1536,13 +1537,13 @@ export default function Dashboard() {
                           <img
                             src={assistido.foto_url}
                             alt={assistido.nome_completo}
-                            className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow-xs"
+                            className="w-13 h-13 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-2xs"
                           />
                         ) : (
-                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950 dark:to-teal-950 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-800 dark:text-emerald-300 shadow-2xs font-bold text-lg">
+                          <div className="w-13 h-13 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-base font-heading">
                             {assistido.nome_completo
                               ? assistido.nome_completo.charAt(0).toUpperCase()
-                              : <UserIcon className="w-7 h-7 text-emerald-700 dark:text-emerald-400" />}
+                              : <UserIcon className="w-6 h-6 text-slate-500 dark:text-slate-400" />}
                           </div>
                         )}
                       </div>
@@ -1555,21 +1556,21 @@ export default function Dashboard() {
                         {isPendenteAvaliacao4Meses(assistido) && (
                           <div className="mb-1.5">
                             <span
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-xs animate-pulse"
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs animate-pulse"
                               title="Assistido com mais de 120 dias de curso/acolhimento ativos. Necessita registro da Avaliação de 4 Meses."
                             >
                               <span>⚠️</span>
-                              <span>Atingiu 4 Meses (Avaliação Pendente)</span>
+                              <span>Avaliação 4 Meses Pendente</span>
                             </span>
                           </div>
                         )}
                         <h3
-                          className="font-bold text-gray-900 dark:text-slate-100 text-base leading-snug line-clamp-1 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition"
+                          className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug line-clamp-1 group-hover:text-emerald-800 dark:group-hover:text-emerald-400 transition font-heading"
                           title={assistido.nome_completo}
                         >
                           {assistido.nome_completo}
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                           {assistido.idade !== null && assistido.idade !== undefined
                             ? `${assistido.idade} anos`
                             : 'Idade não informada'}{' '}
@@ -1580,15 +1581,15 @@ export default function Dashboard() {
 
                     {/* Tags Visuais Especiais (Situação de Rua / PcD) */}
                     {(isSituacaoRua || assistido.possui_deficiencia) && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
                         {isSituacaoRua && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                             <Home className="w-3 h-3 text-amber-700 dark:text-amber-400" />
                             Em situação de rua
                           </span>
                         )}
                         {assistido.possui_deficiencia && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                             <HeartPulse className="w-3 h-3 text-indigo-700 dark:text-indigo-400" />
                             Possui deficiência (PcD)
                           </span>
@@ -1597,10 +1598,10 @@ export default function Dashboard() {
                     )}
 
                     {/* Informações Resumidas com Ícones */}
-                    <div className="pt-2 border-t border-gray-100 dark:border-slate-700/80 space-y-2 text-xs text-gray-600 dark:text-slate-300">
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-700/80 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                       {/* Bairro / Localidade */}
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
-                        <MapPin className="w-3.5 h-3.5 text-gray-400 dark:text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0" />
                         <span className="truncate">
                           {isSituacaoRua
                             ? 'Sem moradia fixa (Situação de Rua)'
@@ -1609,16 +1610,16 @@ export default function Dashboard() {
                       </div>
 
                       {/* Oficina / Curso */}
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
-                        <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="font-semibold text-gray-900 dark:text-slate-100 truncate">
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <GraduationCap className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                           {assistido.curso_pretendido || 'Não vinculada'}
                         </span>
                       </div>
 
                       {/* Faixa de Renda Familiar */}
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
-                        <DollarSign className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                         <span>
                           Renda:{' '}
                           <strong className="text-emerald-800 dark:text-emerald-400 font-bold">
@@ -1628,8 +1629,8 @@ export default function Dashboard() {
                       </div>
 
                       {/* Composição Familiar e Filhos */}
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-slate-300">
-                        <Users className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0" />
                         <span>
                           Família: <strong>{assistido.composicao_familiar || 1}</strong> {assistido.composicao_familiar === 1 ? 'pessoa' : 'pessoas'}
                           {getAssistidoFilhos(assistido) !== null && (
@@ -1639,8 +1640,8 @@ export default function Dashboard() {
                       </div>
 
                       {/* Ocupação / Trabalho */}
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-slate-300">
-                        <Briefcase className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <Briefcase className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0" />
                         <span className="truncate">
                           {assistido.atividade_remunerada === 'Sim'
                             ? 'Atividade remunerada ativa'
@@ -1650,11 +1651,11 @@ export default function Dashboard() {
                       </div>
 
                       {/* Data de Ingresso */}
-                      <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-slate-400 shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-400 shrink-0" />
                         <span>
                           Ingresso:{' '}
-                          <strong className="text-gray-700 dark:text-slate-200">
+                          <strong className="text-slate-700 dark:text-slate-200">
                             {formatDate(assistido.data_ingresso || assistido.created_at)}
                           </strong>
                         </span>
@@ -1662,11 +1663,11 @@ export default function Dashboard() {
 
                       {/* Data de Saída / Desligamento (se houver) */}
                       {getAssistidoDataSaida(assistido) && (
-                        <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                        <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400">
                           <Calendar className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400 shrink-0" />
                           <span>
                             Saída:{' '}
-                            <strong className="text-rose-700 dark:text-rose-300">
+                            <strong className="text-rose-800 dark:text-rose-300">
                               {formatDate(getAssistidoDataSaida(assistido))}
                             </strong>
                           </span>
@@ -1675,8 +1676,8 @@ export default function Dashboard() {
 
                       {/* Telefone (se houver) */}
                       {assistido.telefone && (
-                        <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
-                          <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                          <Phone className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                           <span>{assistido.telefone}</span>
                         </div>
                       )}
@@ -1684,14 +1685,14 @@ export default function Dashboard() {
                   </div>
 
                   {/* Rodapé do Card com Ações */}
-                  <div className="px-5 py-3.5 bg-gray-50/80 dark:bg-slate-750 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between gap-2">
+                  <div className="px-5 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2">
                     {/* Botão Ver / Editar Ficha */}
                     <button
                       type="button"
                       onClick={() => handleOpenDetails(assistido)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 text-emerald-800 dark:text-emerald-300 border border-gray-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-500 text-xs font-semibold rounded-lg shadow-2xs transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 text-emerald-800 dark:text-emerald-300 border border-slate-200 dark:border-slate-600 hover:border-emerald-300 dark:hover:border-emerald-500 text-xs font-semibold rounded-lg shadow-2xs transition cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <Eye className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                       {canEdit ? 'Ver / Editar Ficha' : 'Ver Ficha'}
                     </button>
 
@@ -1700,7 +1701,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => setAssistidoToDelete(assistido)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-gray-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg text-xs font-medium transition cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-slate-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md text-xs font-medium transition cursor-pointer"
                         title="Excluir Assistido (Permissão Admin)"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1716,21 +1717,21 @@ export default function Dashboard() {
 
         {/* TABELA DE ASSISTIDOS (Modo Tabela) */}
         {!loading && filteredAssistidos.length > 0 && viewMode === 'table' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/90 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                    <th scope="col" className="py-3.5 px-4">Assistido</th>
-                    <th scope="col" className="py-3.5 px-4">Status Acompanhamento</th>
-                    <th scope="col" className="py-3.5 px-4">Avaliação 4 Meses</th>
-                    <th scope="col" className="py-3.5 px-4">Oficina / Curso</th>
-                    <th scope="col" className="py-3.5 px-4">Localidade</th>
-                    <th scope="col" className="py-3.5 px-4">Data Ingresso</th>
-                    <th scope="col" className="py-3.5 px-4 text-right">Ações</th>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-heading">
+                    <th scope="col" className="py-3 px-4">Assistido</th>
+                    <th scope="col" className="py-3 px-4">Status</th>
+                    <th scope="col" className="py-3 px-4">Avaliação 4 Meses</th>
+                    <th scope="col" className="py-3 px-4">Oficina</th>
+                    <th scope="col" className="py-3 px-4">Localidade</th>
+                    <th scope="col" className="py-3 px-4">Data Ingresso</th>
+                    <th scope="col" className="py-3 px-4 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-xs">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-xs text-slate-800 dark:text-slate-200">
                   {filteredAssistidos.map((assistido) => {
                     const isPendente = isPendenteAvaliacao4Meses(assistido);
                     const isConcluida = hasAvaliacao4Meses(assistido);
@@ -1742,8 +1743,8 @@ export default function Dashboard() {
                     return (
                       <tr
                         key={assistido.id}
-                        className={`hover:bg-emerald-50/30 transition ${
-                          isPendente ? 'bg-amber-50/30' : ''
+                        className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition ${
+                          isPendente ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''
                         }`}
                       >
                         {/* Assistido Foto & Nome */}
@@ -1753,18 +1754,18 @@ export default function Dashboard() {
                               <img
                                 src={assistido.foto_url}
                                 alt={assistido.nome_completo}
-                                className="w-9 h-9 rounded-full object-cover border border-gray-200 shrink-0"
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                               />
                             ) : (
-                              <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-bold text-xs shrink-0 font-heading">
                                 {assistido.nome_completo ? assistido.nome_completo.charAt(0).toUpperCase() : 'A'}
                               </div>
                             )}
                             <div className="min-w-0">
-                              <div className="font-bold text-gray-900 truncate hover:text-emerald-700 transition">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 truncate hover:text-emerald-700 transition font-heading">
                                 {assistido.nome_completo}
                               </div>
-                              <div className="text-[11px] text-gray-500">
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
                                 {assistido.idade ? `${assistido.idade} anos` : 'Idade não informada'}
                                 {assistido.cpf ? ` • CPF: ${assistido.cpf}` : ''}
                               </div>
@@ -1780,17 +1781,17 @@ export default function Dashboard() {
                         {/* Avaliação 4 Meses */}
                         <td className="py-3 px-4 whitespace-nowrap">
                           {isPendente ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-pulse">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs animate-pulse">
                               <span>⚠️</span>
-                              <span>Atingiu 4 Meses (Avaliação Pendente)</span>
+                              <span>Avaliação 4 Meses Pendente</span>
                             </span>
                           ) : isConcluida ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                               Avaliação Concluída
                             </span>
                           ) : (
-                            <span className="text-[11px] text-gray-500 font-medium">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                               {dias !== null ? `⏳ ${dias} dias (< 120 dias)` : 'Em acompanhamento'}
                             </span>
                           )}
@@ -1798,19 +1799,19 @@ export default function Dashboard() {
 
                         {/* Oficina */}
                         <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5 text-gray-800 font-medium truncate max-w-[160px]">
-                            <GraduationCap className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-medium truncate max-w-[160px]">
+                            <GraduationCap className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                             <span className="truncate">{assistido.curso_pretendido || 'Não vinculada'}</span>
                           </div>
                         </td>
 
                         {/* Localidade */}
-                        <td className="py-3 px-4 text-gray-600 truncate max-w-[160px]">
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 truncate max-w-[160px]">
                           {isSituacaoRua ? 'Situação de Rua' : assistido.bairro || assistido.endereco || 'Não informado'}
                         </td>
 
                         {/* Data Ingresso */}
-                        <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                        <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {formatDate(assistido.data_ingresso || assistido.created_at)}
                         </td>
 
@@ -1820,16 +1821,16 @@ export default function Dashboard() {
                             <button
                               type="button"
                               onClick={() => handleOpenDetails(assistido)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-800 border border-gray-200 hover:border-emerald-300 text-xs font-semibold rounded-lg shadow-2xs transition"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 text-emerald-800 dark:text-emerald-300 border border-slate-200 dark:border-slate-600 hover:border-emerald-300 text-xs font-semibold rounded-md shadow-2xs transition"
                             >
-                              <Eye className="w-3 h-3 text-emerald-600" />
+                              <Eye className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                               {canEdit ? 'Ver / Editar' : 'Ver Ficha'}
                             </button>
                             {isAdmin && (
                               <button
                                 type="button"
                                 onClick={() => setAssistidoToDelete(assistido)}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+                                className="p-1 text-slate-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition"
                                 title="Excluir Assistido"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1873,19 +1874,19 @@ export default function Dashboard() {
       {/* ========================================================================= */}
       {assistidoToDelete && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 space-y-4">
-            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 space-y-4">
+            <div className="w-12 h-12 rounded-lg bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-bold text-gray-900">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 font-heading">
                 Confirmar Exclusão de Assistido
               </h3>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Esta ação é irreversível e excluirá permanentemente o cadastro de:
               </p>
-              <p className="text-sm font-bold text-red-700 mt-2 p-2 bg-red-50 rounded-lg">
+              <p className="text-sm font-bold text-red-700 dark:text-red-400 mt-2 p-2 bg-red-50 dark:bg-red-950/40 rounded-lg">
                 {assistidoToDelete.nome_completo}
               </p>
             </div>
@@ -1895,7 +1896,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setAssistidoToDelete(null)}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-semibold transition"
+                className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold transition"
               >
                 Cancelar
               </button>
@@ -1903,7 +1904,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs"
               >
                 {deleting ? 'Excluindo...' : 'Sim, Excluir'}
               </button>

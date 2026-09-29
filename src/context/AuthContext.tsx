@@ -136,23 +136,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let activeChannel: any = null;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const activeUser = session?.user ?? null;
-      if (activeUser && isUsuarioInativo(activeUser)) {
-        supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        setProfile(null);
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        const activeUser = session?.user ?? null;
+        if (activeUser && isUsuarioInativo(activeUser)) {
+          supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        setSession(session);
+        setUser(activeUser);
+        if (activeUser) {
+          await loadProfile(activeUser);
+        }
         setLoading(false);
-        return;
-      }
-      setSession(session);
-      setUser(activeUser);
-      if (activeUser) {
-        await loadProfile(activeUser);
-      }
-      setLoading(false);
-    });
+      })
+      .catch((err) => {
+        console.warn('Sessão Supabase não carregada:', err);
+        setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const activeUser = session?.user ?? null;
@@ -186,29 +192,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel(`profile-realtime-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        async (payload) => {
-          const newRow = payload.new as ProfileRecord;
-          if (newRow) {
-            if (newRow.status === 'inativo' || newRow.ativo === false || newRow.cargo === 'Inativo') {
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-              setProfile(null);
-            } else {
-              setProfile(newRow);
+    let channel: any = null;
+    try {
+      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+      if (hasUrl) {
+        channel = supabase
+          .channel(`profile-realtime-${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+            async (payload) => {
+              const newRow = payload.new as ProfileRecord;
+              if (newRow) {
+                if (newRow.status === 'inativo' || newRow.ativo === false || newRow.cargo === 'Inativo') {
+                  await supabase.auth.signOut();
+                  setSession(null);
+                  setUser(null);
+                  setProfile(null);
+                } else {
+                  setProfile(newRow);
+                }
+              }
             }
-          }
-        }
-      )
-      .subscribe();
+          )
+          .subscribe();
+      }
+    } catch (channelErr) {
+      console.warn('Realtime channel perfil não disponível:', channelErr);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }, [user]);
 

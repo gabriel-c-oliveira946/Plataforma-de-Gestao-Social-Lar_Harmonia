@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { assistidosService } from '../services/assistidosService';
 import {
   User,
   Briefcase,
@@ -470,11 +471,7 @@ export default function CadastrarAssistido() {
       }
 
       // Execução única e exclusiva na Aba 5
-      const { error } = await supabase.from('assistidos').insert([payload]);
-
-      if (error) {
-        throw error;
-      }
+      await assistidosService.insert(payload);
 
       setSuccessData({
         nome: formData.nome_completo.trim(),
@@ -543,17 +540,17 @@ export default function CadastrarAssistido() {
         {/* Breadcrumb e Título */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400 mb-1">
-              <Link to="/dashboard" className="hover:text-emerald-700 dark:hover:text-emerald-400 transition">
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
+              <Link to="/dashboard" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition">
                 Início
               </Link>
               <span>/</span>
-              <span className="text-gray-800 dark:text-slate-200 font-medium">Novo Cadastro</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Novo Cadastro</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight font-heading">
               Avaliação Socioeconômica e Pedagógica
             </h1>
-            <p className="text-gray-600 dark:text-slate-400 text-sm mt-1">
+            <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
               Formulário Oficial de Acolhimento em 5 Etapas - Fundação Lar Harmonia
             </p>
           </div>
@@ -561,9 +558,9 @@ export default function CadastrarAssistido() {
           <div className="flex items-center gap-2">
             <Link
               to="/dashboard"
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-2xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-2xs"
             >
-              <LayoutDashboard className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+              <LayoutDashboard className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               Painel Geral
             </Link>
           </div>
@@ -572,47 +569,47 @@ export default function CadastrarAssistido() {
         {/* Modal de Sucesso em Destaque */}
         {successData && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl border border-gray-100 dark:border-slate-700 animate-in zoom-in-95 space-y-5">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 className="w-10 h-10" />
+            <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 space-y-5">
+              <div className="w-14 h-14 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight font-heading">
                   Ficha Cadastrada com Sucesso!
                 </h3>
-                <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                   Todas as 5 áreas da avaliação socioeconômica e pedagógica foram consolidadas e salvas com sucesso no banco de dados.
                 </p>
               </div>
 
-              <div className="bg-gray-50 dark:bg-slate-700/60 rounded-2xl p-4 border border-gray-200/80 dark:border-slate-600 text-left space-y-2 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-700/60 rounded-xl p-4 border border-slate-200/80 dark:border-slate-600 text-left space-y-2 text-xs">
                 <div>
-                  <span className="text-gray-400 dark:text-slate-400 block font-semibold">Assistido(a):</span>
-                  <span className="font-bold text-gray-900 dark:text-white text-sm">{successData.nome}</span>
+                  <span className="text-slate-400 dark:text-slate-400 block font-semibold">Assistido(a):</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm font-heading">{successData.nome}</span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200/50 dark:border-slate-600">
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200/50 dark:border-slate-600">
                   <div>
-                    <span className="text-gray-400 dark:text-slate-400 block font-semibold">CPF:</span>
-                    <span className="font-medium text-gray-800 dark:text-slate-200">{successData.cpf}</span>
+                    <span className="text-slate-400 dark:text-slate-400 block font-semibold">CPF:</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{successData.cpf}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-gray-400 dark:text-slate-400 block font-semibold">Oficina Vinculada:</span>
-                    <span className="font-bold text-emerald-700 dark:text-emerald-400">{successData.oficina}</span>
+                    <span className="text-slate-400 dark:text-slate-400 block font-semibold">Oficina Vinculada:</span>
+                    <span className="font-bold text-emerald-800 dark:text-emerald-400 font-heading">{successData.oficina}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-[11px] text-gray-400 dark:text-slate-400 flex items-center justify-center gap-1.5 font-medium">
-                <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
-                Redirecionando para o Dashboard em <strong className="text-emerald-700 dark:text-emerald-400 font-bold">{redirectCountdown}s</strong>...
+              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 font-medium">
+                <Clock className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 animate-pulse" />
+                Redirecionando para o Dashboard em <strong className="text-emerald-800 dark:text-emerald-400 font-bold">{redirectCountdown}s</strong>...
               </div>
 
               <div className="space-y-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   Ver no Dashboard Agora
@@ -621,9 +618,9 @@ export default function CadastrarAssistido() {
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <RotateCcw className="w-4 h-4" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                   Cadastrar Novo Assistido
                 </button>
               </div>
@@ -633,7 +630,7 @@ export default function CadastrarAssistido() {
 
         {/* Card de Erro */}
         {errorMsg && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-2xl shadow-xs flex items-center justify-between text-red-800 dark:text-red-300 animate-fadeIn">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-xl shadow-xs flex items-center justify-between text-red-800 dark:text-red-300 animate-fadeIn">
             <div className="flex items-center gap-2.5">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium">{errorMsg}</span>
@@ -649,8 +646,8 @@ export default function CadastrarAssistido() {
         )}
 
         {/* Abas e Barra de Progresso em 5 Etapas com Rolagem Suave no Mobile */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs mb-8 overflow-x-auto whitespace-nowrap scrollbar-thin">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-slate-700 min-w-[340px] sm:min-w-0">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs mb-8 overflow-x-auto whitespace-nowrap scrollbar-thin">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-700 min-w-[340px] sm:min-w-0">
             {tabsConfig.map((tab) => {
               const TabIcon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -665,28 +662,28 @@ export default function CadastrarAssistido() {
                   }}
                   className={`p-3.5 text-left transition flex items-center gap-3 cursor-pointer ${
                     isActive
-                      ? 'bg-emerald-50/90 dark:bg-emerald-950/60 border-b-2 lg:border-b-0 lg:border-l-4 border-emerald-600 dark:border-emerald-500'
-                      : 'hover:bg-gray-50 dark:hover:bg-slate-700/60'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-b-2 lg:border-b-0 lg:border-l-4 border-emerald-700 dark:border-emerald-500'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/60'
                   }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-xs transition ${
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xs transition ${
                       isActive
-                        ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
+                        ? 'bg-emerald-700 text-white shadow-xs'
                         : isPast
-                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                     }`}
                   >
-                    {isPast ? <CheckCircle2 className="w-4 h-4" /> : <TabIcon className="w-4 h-4" />}
+                    {isPast ? <CheckCircle2 className="w-3.5 h-3.5" /> : <TabIcon className="w-3.5 h-3.5" />}
                   </div>
                   <div className="min-w-0">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-400">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                       Etapa {tab.id}
                     </span>
                     <span
-                      className={`block text-xs font-bold truncate ${
-                        isActive ? 'text-emerald-900 dark:text-emerald-300' : 'text-gray-700 dark:text-slate-200'
+                      className={`block text-xs font-semibold truncate font-heading ${
+                        isActive ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       {tab.shortTitle}
@@ -727,7 +724,7 @@ export default function CadastrarAssistido() {
           )}
 
           {/* Botões de Navegação Inferior */}
-          <div className="mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-200 dark:border-slate-700">
+          <div className="mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200 dark:border-slate-700">
             <div>
               {activeTab > 1 ? (
                 <button
@@ -736,16 +733,16 @@ export default function CadastrarAssistido() {
                     setActiveTab((prev) => Math.max(1, prev - 1));
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-2xs cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-2xs cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-3.5 h-3.5" />
                   Voltar para Etapa {activeTab - 1}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Limpar Formulário
@@ -758,16 +755,16 @@ export default function CadastrarAssistido() {
                 <button
                   type="button"
                   onClick={handleNextTab}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition shadow-xs cursor-pointer"
                 >
                   Próximo (Aba {activeTab + 1})
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               ) : (
                 <button
                   type="submit"
                   disabled={submitting || !!successData}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-sm font-bold transition shadow-md cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-lg text-xs font-semibold transition shadow-xs cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {submitting ? 'Salvando Cadastro...' : 'Concluir e Cadastrar Assistido'}

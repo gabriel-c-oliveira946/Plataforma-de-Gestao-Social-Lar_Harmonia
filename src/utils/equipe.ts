@@ -14,8 +14,12 @@ const STORAGE_KEY_EQUIPE = 'lar_harmonia_equipe_custom';
 const STORAGE_KEY_INATIVOS = 'lar_harmonia_inativos';
 const STORAGE_KEY_INATIVOS_MENSAGENS = 'lar_harmonia_inativos_mensagens';
 
-const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
-const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
+const supabaseUrl =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
+  'https://placeholder-larharmonia.supabase.co';
+const supabaseAnonKey =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  'placeholder-anon-key';
 
 /**
  * Mapa de mensagens personalizadas enviadas pela administração aos membros desativados

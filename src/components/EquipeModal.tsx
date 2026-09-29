@@ -542,16 +542,16 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden border border-gray-100 dark:border-slate-800">
         {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">
+              <h2 className="font-heading text-lg font-bold text-slate-900 dark:text-slate-100 leading-tight">
                 Gestão da Equipe & Níveis de Acesso
               </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Operadores e permissões ativas no sistema Lar Harmonia
               </p>
             </div>
@@ -559,7 +559,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition cursor-pointer"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -567,14 +567,14 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
 
         {/* Notificações de Sucesso / Erro */}
         {successMsg && (
-          <div className="mx-6 mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-200 animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-200 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2 text-xs font-semibold text-red-800 dark:text-red-200 animate-in fade-in">
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-xs font-semibold text-red-800 dark:text-red-200 animate-in fade-in">
             <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -592,8 +592,8 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                 </span>
                 <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase">Acesso Total</span>
               </div>
-              <h3 className="text-xs font-bold text-gray-900 dark:text-purple-100">Diretoria / Administrador</h3>
-              <p className="text-[11px] text-gray-600 dark:text-slate-300 leading-relaxed">
+              <h3 className="font-heading text-xs font-bold text-slate-900 dark:text-purple-100">Diretoria / Administrador</h3>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Acesso total: Cadastrar, Editar 5 abas, Avaliação 4 meses, Excluir fichas + <strong>EXCLUSIVIDADE para Cadastrar e Gerenciar Membros da Equipe</strong>.
               </p>
             </div>
@@ -602,13 +602,13 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
             <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/40 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-700">
-                  <UserCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                  <UserCheck className="w-3 h-3 text-emerald-700 dark:text-emerald-400" />
                   servico_social
                 </span>
                 <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Operacional</span>
               </div>
-              <h3 className="text-xs font-bold text-gray-900 dark:text-emerald-100">Serviço Social / Assistente</h3>
-              <p className="text-[11px] text-gray-600 dark:text-slate-300 leading-relaxed">
+              <h3 className="font-heading text-xs font-bold text-slate-900 dark:text-emerald-100">Serviço Social / Assistente</h3>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Acesso completo operacional dos assistidos: Cadastrar assistidos, Editar todas as 5 abas, Consultar e Registrar Avaliação de 4 Meses (sem criação de usuários).
               </p>
             </div>
@@ -622,8 +622,8 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                 </span>
                 <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 uppercase">Consulta</span>
               </div>
-              <h3 className="text-xs font-bold text-gray-900 dark:text-sky-100">Recepção / Voluntário</h3>
-              <p className="text-[11px] text-gray-600 dark:text-slate-300 leading-relaxed">
+              <h3 className="font-heading text-xs font-bold text-slate-900 dark:text-sky-100">Recepção / Voluntário</h3>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Permissão para Cadastro inicial de triagem e Consulta/visualização de fichas sociais (sem permissão de edição, exclusão ou equipe).
               </p>
             </div>
@@ -633,9 +633,9 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
           <div className="space-y-3.5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
               <div>
-                <h3 className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <h3 className="font-heading text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
                   <span>Membros da Equipe</span>
-                  <span className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 normal-case">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 normal-case font-sans">
                     ({equipe.filter((m) => m.status !== 'inativo' && m.ativo !== false).length} ativos, {equipe.filter((m) => m.status === 'inativo' || m.ativo === false).length} inativos)
                   </span>
                 </h3>
@@ -649,14 +649,14 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                     setShowAddForm(!showAddForm);
                     setErrorMsg(null);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 rounded-lg shadow-2xs transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 rounded-lg shadow-2xs transition cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   {showAddForm ? 'Fechar Formulário' : 'Cadastrar Novo Membro'}
                 </button>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-transparent dark:border-slate-700">
-                  <Lock className="w-3 h-3 text-gray-400" />
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-transparent dark:border-slate-700">
+                  <Lock className="w-3 h-3 text-slate-400" />
                   Cadastro restrito à Diretoria
                 </span>
               )}
@@ -666,18 +666,18 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
             {isAdmin && showAddForm && (
               <form
                 onSubmit={handleAddMember}
-                className="p-5 bg-slate-50 dark:bg-slate-800 border border-emerald-200 dark:border-slate-700 rounded-xl space-y-4 animate-in fade-in shadow-xs"
+                className="p-5 bg-slate-50 dark:bg-slate-800/80 border border-emerald-200/80 dark:border-slate-700 rounded-xl space-y-4 animate-in fade-in shadow-xs"
               >
-                <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-slate-700">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
                       <Plus className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                      <h4 className="font-heading text-xs font-bold text-slate-900 dark:text-slate-100">
                         Cadastrar Novo Membro / Operador
                       </h4>
-                      <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         Cria o acesso no Supabase Auth com permissões e metadados configurados
                       </p>
                     </div>
@@ -690,7 +690,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Nome Completo */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-200 mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
                       Nome Completo <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -700,13 +700,13 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                       placeholder="Ex: Ana Silva"
                       required
                       disabled={submitting}
-                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg text-xs text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 dark:disabled:bg-slate-800 transition"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition"
                     />
                   </div>
 
                   {/* E-mail Institucional */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-200 mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
                       E-mail Institucional <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -716,7 +716,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                       placeholder="Ex: ana@larharmonia.org"
                       required
                       disabled={submitting}
-                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg text-xs text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 dark:disabled:bg-slate-800 transition"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition"
                     />
                   </div>
                 </div>
@@ -725,8 +725,8 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                   {/* Senha Inicial */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-gray-700 dark:text-slate-200 flex items-center gap-1">
-                        <KeyRound className="w-3 h-3 text-gray-500 dark:text-slate-400" />
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                        <KeyRound className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                         <span>Senha Inicial</span> <span className="text-red-500">*</span>
                       </label>
                       <button
@@ -758,20 +758,20 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                         required
                         minLength={6}
                         disabled={submitting}
-                        className="w-full p-2.5 pr-10 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg text-xs text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 dark:disabled:bg-slate-800 transition"
+                        className="w-full p-2.5 pr-10 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 transition"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNovoSenha(!showNovoSenha)}
                         disabled={submitting}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition cursor-pointer"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
                         title={showNovoSenha ? 'Ocultar Senha' : 'Mostrar Senha'}
                         aria-label={showNovoSenha ? 'Ocultar Senha' : 'Mostrar Senha'}
                       >
                         {showNovoSenha ? (
-                          <EyeOff className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                          <EyeOff className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                         ) : (
-                          <Eye className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                         )}
                       </button>
                     </div>
@@ -779,24 +779,24 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
 
                   {/* Cargo/Perfil: Seletor com as opções [Serviço Social], [Recepção] e [Admin] */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-700 dark:text-slate-200 mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
                       Cargo / Perfil de Acesso <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={novoRole}
                       onChange={(e) => setNovoRole(e.target.value as UserRole)}
                       disabled={submitting}
-                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg text-xs text-gray-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 dark:disabled:bg-slate-800 font-medium transition cursor-pointer"
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 font-medium transition cursor-pointer"
                     >
-                      <option value="servico_social" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100">Serviço Social</option>
-                      <option value="recepcao" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100">Recepção</option>
-                      <option value="admin" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100">Admin (Diretoria / Administrador)</option>
+                      <option value="servico_social" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Serviço Social</option>
+                      <option value="recepcao" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Recepção</option>
+                      <option value="admin" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Admin (Diretoria / Administrador)</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-slate-700">
-                  <span className="text-[11px] text-gray-500 dark:text-slate-400">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
                     O operador receberá as permissões de acordo com o perfil selecionado.
                   </span>
                   <div className="flex items-center gap-2">
@@ -804,14 +804,14 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                       type="button"
                       onClick={() => setShowAddForm(false)}
                       disabled={submitting}
-                      className="px-3.5 py-2 text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-lg shadow-xs transition shadow-emerald-600/20 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg shadow-xs transition cursor-pointer"
                     >
                       {submitting ? (
                         <>
@@ -833,23 +833,23 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
             {/* Controles de Filtro: Abas [Ativos] / [Inativos / Desativados] e Campo de Busca */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               {/* Abas de Alternância */}
-              <div className="inline-flex p-1 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shrink-0">
+              <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
                 <button
                   type="button"
                   onClick={() => setStatusFilter('ativos')}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                     statusFilter === 'ativos'
                       ? 'bg-white dark:bg-slate-700 text-emerald-800 dark:text-emerald-300 shadow-2xs'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                   <span>Ativos</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                       statusFilter === 'ativos'
                         ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-400'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     {equipe.filter((m) => m.status !== 'inativo' && m.ativo !== false).length}
@@ -862,7 +862,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                     statusFilter === 'inativos'
                       ? 'bg-white dark:bg-slate-700 text-red-800 dark:text-red-300 shadow-2xs'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
                 >
                   <UserX className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
@@ -871,7 +871,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                       statusFilter === 'inativos'
                         ? 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-200'
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-400'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     {equipe.filter((m) => m.status === 'inativo' || m.ativo === false).length}
@@ -881,19 +881,19 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
 
               {/* Campo de Busca / Pesquisa em Tempo Real */}
               <div className="relative flex-1 max-w-full sm:max-w-xs">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Pesquisar por nome ou e-mail..."
-                  className="w-full pl-9 pr-8 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 transition"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white dark:focus:bg-slate-900 transition"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer"
                     title="Limpar pesquisa"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -903,7 +903,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
             </div>
 
             {/* Lista dos Membros da Equipe */}
-            <div className="divide-y divide-gray-100 dark:divide-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
               {loading ? (
                 <div className="p-8 text-center text-xs text-gray-500 dark:text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />

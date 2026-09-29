@@ -79,13 +79,13 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Dificuldades Enfrentadas */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           Dificuldades Enfrentadas pela Família
         </h3>
 
-        <p className="text-xs text-gray-500 dark:text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Marque todas as vulnerabilidades que incidem sobre o núcleo familiar no momento:
         </p>
 
@@ -95,10 +95,10 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             return (
               <label
                 key={dif}
-                className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold cursor-pointer select-none transition ${
+                className={`flex items-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer select-none transition ${
                   checked
-                    ? 'bg-amber-500 dark:bg-amber-600 border-amber-600 dark:border-amber-700 text-white shadow-xs'
-                    : 'bg-gray-50 dark:bg-slate-700/60 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    ? 'bg-amber-600 dark:bg-amber-600 border-amber-700 dark:border-amber-700 text-white shadow-xs'
+                    : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <input
@@ -116,15 +116,15 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
       </div>
 
       {/* Tabela / Bloco de Saúde da Família (Seção 11) */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <HeartPulse className="w-5 h-5 text-red-600 dark:text-red-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <HeartPulse className="w-5 h-5 text-rose-600 dark:text-rose-400" />
           Saúde Familiar (Seção 11 - Condições, Parentesco e Medicamento/Como adquire)
         </h3>
 
         <div className="space-y-4">
           {/* 1. Doença Crônica */}
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2.5 cursor-pointer">
                 <input
@@ -138,11 +138,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                   }
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   Doença Crônica (Hipertensão, Diabetes, Cardiopatia, etc.)
                 </span>
               </label>
-              <span className="text-xs text-gray-400 dark:text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {formData.saude_doenca_cronica ? 'Registrado' : 'Não se aplica'}
               </span>
             </div>
@@ -150,7 +150,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             {formData.saude_doenca_cronica && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fadeIn">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Quem possui (Grau de Parentesco):
                   </label>
                   <input
@@ -164,11 +164,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Mãe / O próprio assistido"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Medicamento / Como adquire:
                   </label>
                   <input
@@ -182,7 +182,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Losartana / Posto de Saúde SUS / Farmácia Popular"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
               </div>
@@ -190,7 +190,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
           </div>
 
           {/* 2. Dependência Química */}
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2.5 cursor-pointer">
                 <input
@@ -204,11 +204,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                   }
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   Dependência Química (Álcool ou outras substâncias)
                 </span>
               </label>
-              <span className="text-xs text-gray-400 dark:text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {formData.saude_dependencia_quimica ? 'Registrado' : 'Não se aplica'}
               </span>
             </div>
@@ -216,7 +216,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             {formData.saude_dependencia_quimica && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fadeIn">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Quem possui (Grau de Parentesco):
                   </label>
                   <input
@@ -230,11 +230,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Filho / Cônjuge"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Medicamento / Como adquire / Acompanhamento:
                   </label>
                   <input
@@ -248,7 +248,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: CAPS AD / Sem medicação / Em abstinência"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
               </div>
@@ -256,7 +256,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
           </div>
 
           {/* 3. Sofrimento Psíquico Grave / Saúde Mental */}
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2.5 cursor-pointer">
                 <input
@@ -270,11 +270,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                   }
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   Sofrimento Psíquico Grave / Saúde Mental (Depressão severa, Transtorno Bipolar, Ansiedade grave)
                 </span>
               </label>
-              <span className="text-xs text-gray-400 dark:text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {formData.saude_mental ? 'Registrado' : 'Não se aplica'}
               </span>
             </div>
@@ -282,7 +282,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             {formData.saude_mental && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fadeIn">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Quem possui (Grau de Parentesco):
                   </label>
                   <input
@@ -296,11 +296,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Próprio assistido / Filha"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Medicamento / Como adquire:
                   </label>
                   <input
@@ -314,7 +314,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Sertralina / Ambulatório da FLH / Posto SUS"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
               </div>
@@ -322,7 +322,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
           </div>
 
           {/* 4. Deficiência / Síndrome */}
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2.5 cursor-pointer">
                 <input
@@ -336,11 +336,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                   }
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   Deficiência / Síndrome (PcD, TEA, Síndrome de Down, Motora, Visual, Auditiva)
                 </span>
               </label>
-              <span className="text-xs text-gray-400 dark:text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {formData.saude_deficiencia ? 'Registrado' : 'Não se aplica'}
               </span>
             </div>
@@ -348,7 +348,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             {formData.saude_deficiencia && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fadeIn">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Quem possui (Grau de Parentesco):
                   </label>
                   <input
@@ -362,11 +362,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Filho / O próprio assistido"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Tipo de Deficiência / Medicamento / Como adquire:
                   </label>
                   <input
@@ -380,7 +380,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Autismo nível 2 / Risperidona - Farmácia SUS"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
               </div>
@@ -388,7 +388,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
           </div>
 
           {/* 5. Outra Situação de Saúde */}
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="inline-flex items-center gap-2.5 cursor-pointer">
                 <input
@@ -402,11 +402,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                   }
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
                   Outra Situação Relevante de Saúde
                 </span>
               </label>
-              <span className="text-xs text-gray-400 dark:text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {formData.saude_outra_situacao ? 'Registrado' : 'Não se aplica'}
               </span>
             </div>
@@ -414,7 +414,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
             {formData.saude_outra_situacao && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 animate-fadeIn">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Quem possui (Grau de Parentesco):
                   </label>
                   <input
@@ -428,11 +428,11 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Avô acamado / Sobrinho"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Condição e Medicamento / Como adquire:
                   </label>
                   <input
@@ -446,7 +446,7 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
                       })
                     }
                     placeholder="Ex: Sequelas de AVC / Fisioterapia domiciliar e anticoagulante"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                   />
                 </div>
               </div>
@@ -456,22 +456,22 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
       </div>
 
       {/* Rede de Apoio e Risco de Evasão */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <Users2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <Users2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
           Rede de Apoio e Fatores de Risco
         </h3>
 
         {/* Rede de Apoio Principal */}
-        <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
-          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+        <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
             Rede de Apoio Principal da Família
           </label>
           <div className="flex flex-wrap gap-3 sm:gap-4">
             {REDES_APOIO.map((apoio) => (
               <label
                 key={apoio}
-                className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 font-semibold cursor-pointer"
+                className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer"
               >
                 <input
                   type="radio"
@@ -488,8 +488,8 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
         </div>
 
         {/* Fatores de risco para evasão */}
-        <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
-          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+        <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
             Fatores de Risco para Permanência / Evasão das Atividades
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -498,10 +498,10 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
               return (
                 <label
                   key={fat}
-                  className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold cursor-pointer select-none transition ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer select-none transition ${
                     checked
-                      ? 'bg-rose-500 dark:bg-rose-600 border-rose-600 dark:border-rose-700 text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-650'
+                      ? 'bg-rose-600 dark:bg-rose-600 border-rose-700 dark:border-rose-700 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-650'
                   }`}
                 >
                   <input
@@ -520,14 +520,14 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
       </div>
 
       {/* Serviços da FLH já utilizados */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <Building className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <Building className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
           Serviços da Fundação Lar Harmonia (FLH) Já Utilizados
         </h3>
 
         <div className="space-y-4">
-          <p className="text-xs text-gray-600 dark:text-slate-300">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
             Marque todos os setores ou atendimentos da instituição que a família já utilizou:
           </p>
 
@@ -537,10 +537,10 @@ export const TabVulnerabilidades: React.FC<TabVulnerabilidadesProps> = ({
               return (
                 <label
                   key={serv}
-                  className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold cursor-pointer select-none transition ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer select-none transition ${
                     checked
-                      ? 'bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-600 text-white shadow-xs'
-                      : 'bg-gray-50 dark:bg-slate-700/60 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      ? 'bg-emerald-700 dark:bg-emerald-600 border-emerald-800 dark:border-emerald-700 text-white shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <input

@@ -85,19 +85,19 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* 1. Atividade Remunerada e Ocupação */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
           Atividade Remunerada e Trabalho Atual
         </h3>
 
         {/* Pergunta: Realiza atividade remunerada atual? */}
-        <div className="p-4 bg-gray-50 dark:bg-slate-700/60 border border-gray-200 dark:border-slate-600 rounded-xl space-y-3">
-          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+        <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
             Realiza Atividade Remunerada Atual? <span className="text-red-500">*</span>
           </label>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 font-semibold cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer">
               <input
                 type="radio"
                 name="atividade_remunerada"
@@ -114,7 +114,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
               />
               Sim, realiza atividade remunerada
             </label>
-            <label className="inline-flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 font-semibold cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer">
               <input
                 type="radio"
                 name="atividade_remunerada"
@@ -139,15 +139,15 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
         {/* Campos se SIM (Habilitados) ou NÃO (Desabilitados/Ocultos) */}
         {isTrabalhando ? (
           <div className="p-4 sm:p-5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-5 animate-fadeIn">
-            <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h4 className="font-heading text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+              <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               Detalhes da Atividade Remunerada
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               {/* Ocupação / Ramo */}
               <div className="md:col-span-8">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Ocupação / Ramo da Atividade
                 </label>
                 <input
@@ -155,19 +155,19 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                   value={formData.ocupacao_atual}
                   onChange={(e) => setFormData({ ...formData, ocupacao_atual: e.target.value })}
                   placeholder="Ex: Diarista, Pedreiro, Vendedora ambulante, Costureira"
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
               </div>
 
               {/* Turno */}
               <div className="md:col-span-4">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Turno de Trabalho
                 </label>
                 <select
                   value={formData.turno_trabalho}
                   onChange={(e) => setFormData({ ...formData, turno_trabalho: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
                 >
                   {TURNOS_OPCOES.map((t) => (
                     <option key={t} value={t}>
@@ -179,7 +179,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
 
               {/* Dias da Semana (Pills de Marcação Fácil) */}
               <div className="md:col-span-12 space-y-2">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Dias da Semana em que Trabalha:
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -190,10 +190,10 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                         key={dia}
                         type="button"
                         onClick={() => handleDiaSemanaToggle(dia)}
-                        className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer ${
+                        className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-600 dark:bg-emerald-500 text-white border border-emerald-700 dark:border-emerald-600 shadow-xs'
-                            : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600'
+                            ? 'bg-emerald-700 dark:bg-emerald-600 text-white border border-emerald-800 dark:border-emerald-700 shadow-xs'
+                            : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
                         }`}
                       >
                         {dia}
@@ -202,7 +202,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                   })}
                 </div>
                 {(formData.dias_semana_trabalho_array || []).length > 0 && (
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium">
                     Dias selecionados: {(formData.dias_semana_trabalho_array || []).join(', ')}
                   </p>
                 )}
@@ -210,7 +210,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
             </div>
           </div>
         ) : (
-          <div className="p-4 bg-gray-50 dark:bg-slate-700/40 border border-dashed border-gray-300 dark:border-slate-600 rounded-xl text-xs text-gray-500 dark:text-slate-400 italic">
+          <div className="p-4 bg-slate-50 dark:bg-slate-700/40 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs text-slate-500 dark:text-slate-400 italic">
             Ocupação, turno e dias de trabalho ficam desabilitados quando não há atividade remunerada ativa.
           </div>
         )}
@@ -218,7 +218,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
         {/* Causa do Desemprego / Sem Renda (Exibição Condicional: apenas se não realiza atividade remunerada) */}
         {!isTrabalhando && (
           <div className="space-y-1.5 animate-fadeIn">
-            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
               Causa do Desemprego / Sem Renda (Ao que atribui a circunstância e o que está fazendo a respeito?):
             </label>
             <textarea
@@ -228,19 +228,19 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                 setFormData({ ...formData, desemprego_circunstancia: e.target.value })
               }
               placeholder="Ex: Demissão recente, cuidado integral com filhos pequenos, buscando recolocação informal..."
-              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-400 rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-400 rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none resize-none"
             />
           </div>
         )}
 
         {/* Histórico Anterior */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2 border-t border-gray-100 dark:border-slate-700">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2 border-t border-slate-100 dark:border-slate-700">
           <div className="md:col-span-4">
-            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Já trabalhou anteriormente?
             </label>
             <div className="flex gap-4">
-              <label className="inline-flex items-center gap-1.5 text-xs text-gray-800 dark:text-slate-200 font-medium cursor-pointer">
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium cursor-pointer">
                 <input
                   type="radio"
                   name="trabalhou_anteriormente"
@@ -251,7 +251,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                 />
                 Sim
               </label>
-              <label className="inline-flex items-center gap-1.5 text-xs text-gray-800 dark:text-slate-200 font-medium cursor-pointer">
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium cursor-pointer">
                 <input
                   type="radio"
                   name="trabalhou_anteriormente"
@@ -272,7 +272,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
           </div>
 
           <div className="md:col-span-8">
-            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Em qual área ou função exercida anteriormente?
             </label>
             <input
@@ -283,21 +283,21 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                 setFormData({ ...formData, area_trabalho_anterior: e.target.value })
               }
               placeholder="Ex: Auxiliar de limpeza, Atendente de comércio, Construção civil"
-              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-gray-100 dark:disabled:bg-slate-700/50 disabled:text-gray-400 dark:disabled:text-slate-500"
+              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none disabled:bg-slate-100 dark:disabled:bg-slate-700/50 disabled:text-slate-400 dark:disabled:text-slate-500"
             />
           </div>
         </div>
       </div>
 
       {/* 2. Faixa de Renda Familiar / Própria */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
           Faixa de Renda Familiar / Própria
         </h3>
 
         <div className="space-y-4">
-          <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             Selecione a faixa que melhor representa a renda mensal conjunta de todas as pessoas do domicílio:
           </p>
 
@@ -309,10 +309,10 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                   key={faixa}
                   type="button"
                   onClick={() => handleFaixaRenda(faixa)}
-                  className={`p-3.5 rounded-xl border text-left text-xs font-bold transition flex items-center justify-between shadow-2xs cursor-pointer ${
+                  className={`p-3.5 rounded-lg border text-left text-xs font-bold transition flex items-center justify-between shadow-2xs cursor-pointer ${
                     isSelected
-                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white border-emerald-700 dark:border-emerald-600 shadow-sm'
-                      : 'bg-gray-50 dark:bg-slate-700/60 border-gray-200 dark:border-slate-600 text-gray-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      ? 'bg-emerald-700 dark:bg-emerald-600 text-white border-emerald-800 dark:border-emerald-700 shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <span>{faixa}</span>
@@ -322,8 +322,8 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
             })}
           </div>
 
-          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+          <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg text-xs text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
             <span>
               Faixa de renda registrada:{' '}
               <strong className="font-extrabold text-emerald-950 dark:text-emerald-200">
@@ -335,14 +335,14 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
       </div>
 
       {/* 3. Benefícios e Programas Sociais */}
-      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
-        <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 border-b border-gray-100 dark:border-slate-700 pb-3 flex items-center gap-2">
-          <Gift className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
+        <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+          <Gift className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
           Programas Sociais e Benefícios
         </h3>
 
         <div className="space-y-4">
-          <p className="text-xs text-gray-600 dark:text-slate-300">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
             A família ou o assistido recebe algum programa social ou transferência de renda governamental?
           </p>
 
@@ -352,10 +352,10 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
               return (
                 <label
                   key={prog}
-                  className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold cursor-pointer select-none transition ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer select-none transition ${
                     checked
-                      ? 'bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-600 text-white shadow-xs'
-                      : 'bg-gray-50 dark:bg-slate-700/60 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      ? 'bg-emerald-700 dark:bg-emerald-600 border-emerald-800 dark:border-emerald-700 text-white shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <input
@@ -374,7 +374,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
           {/* Campo livre se marcar Outro */}
           {formData.programas_sociais.includes('Outro') && (
             <div className="pt-2 animate-fadeIn">
-              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Qual outro programa ou benefício social?
               </label>
               <input
@@ -384,7 +384,7 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
                   setFormData({ ...formData, outro_programa_social: e.target.value })
                 }
                 placeholder="Ex: Auxílio Gás, Aluguel Social, Bolsa Municipal"
-                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-400 rounded-lg border border-gray-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-400 rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
               />
             </div>
           )}
