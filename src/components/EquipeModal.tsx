@@ -23,7 +23,14 @@ import {
   Search,
   RotateCcw
 } from 'lucide-react';
-import { UserProfile, UserRole, getRoleBadgeClasses, getRoleCargo } from '../types/auth';
+import {
+  UserProfile,
+  UserRole,
+  getRoleBadgeClasses,
+  getRoleCargo,
+  mapCargoToEnumRole,
+  mapRoleToCargoFormatado
+} from '../types/auth';
 import { supabase } from '../lib/supabase/client';
 import {
   getEquipeList,
@@ -325,45 +332,45 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     setSavingEditRole(true);
     setErrorMsg(null);
 
-    const novoCargoNome =
-      roleToEdit === 'admin'
-        ? 'Admin'
-        : roleToEdit === 'servico_social'
-        ? 'Serviço Social'
-        : 'Recepção';
+    const chaveEnumMapeada = mapCargoToEnumRole(roleToEdit);
+    const novoCargoFormatado = mapRoleToCargoFormatado(roleToEdit);
 
     try {
-      // Requisito 2: Atualização direta na tabela 'profiles' do Supabase
+      // 1. Gravação no Supabase: 'cargo' recebe o texto formatado e 'role' recebe o valor exato do ENUM ('admin', 'servico_social', 'recepcao')
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          cargo: novoCargoNome,
-          status: 'ativo'
+          cargo: novoCargoFormatado,
+          role: chaveEnumMapeada
         })
         .eq('id', editingMembro.id);
 
       if (profileError) {
-        console.warn('Erro ao atualizar cargo em profiles:', profileError);
-      }
-
-      // Sincroniza também no helper de equipe
-      const res = await atualizarCargoMembro({
-        id: editingMembro.id,
-        email: editingMembro.email,
-        role: roleToEdit,
-        cargo: novoCargoNome
-      });
-
-      if (!res.success && profileError) {
-        setErrorMsg(res.error || 'Erro ao atualizar cargo do operador.');
+        console.error('Erro ao atualizar cargo no Supabase:', profileError);
+        alert(`Erro ao atualizar cargo no Supabase: ${profileError.message}`);
+        setErrorMsg(`Erro no banco de dados: ${profileError.message}`);
         return;
       }
 
-      setSuccessMsg(`Cargo de ${editingMembro.nome} alterado para ${novoCargoNome} com sucesso!`);
-      setEditingMembro(null);
+      // 2. Sincroniza os dados locais e de sessão
+      await atualizarCargoMembro({
+        id: editingMembro.id,
+        email: editingMembro.email,
+        role: chaveEnumMapeada,
+        cargo: novoCargoFormatado
+      });
+
+      // 3. Recarrega a lista de membros na tela imediatamente após o sucesso
       await loadEquipe();
+
+      // 4. Feedback visível de sucesso
+      alert('Cargo atualizado com sucesso!');
+      setSuccessMsg(`Cargo de ${editingMembro.nome} alterado para ${novoCargoFormatado} com sucesso!`);
+      setEditingMembro(null);
       setTimeout(() => setSuccessMsg(null), 4500);
     } catch (err: any) {
+      console.error('Erro inesperado ao atualizar cargo:', err);
+      alert(`Erro inesperado: ${err?.message || 'Falha ao atualizar cargo do operador.'}`);
       setErrorMsg(err?.message || 'Falha ao atualizar cargo do operador.');
     } finally {
       setSavingEditRole(false);
@@ -442,12 +449,13 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
       : undefined;
 
     try {
-      // Requisito 2: Atualização direta na tabela 'profiles' do Supabase
+      // Requisito: Atualização direta na tabela 'profiles' do Supabase com enum válido
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           cargo: 'Inativo',
-          status: 'inativo'
+          status: 'inativo',
+          role: 'recepcao'
         })
         .eq('id', membroToDelete.id);
 
@@ -493,18 +501,15 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     setErrorMsg(null);
 
     try {
-      const restoredCargo =
-        membro.role === 'admin'
-          ? 'Admin'
-          : membro.role === 'recepcao'
-          ? 'Recepção'
-          : 'Serviço Social';
+      const chaveEnumRestaurada = mapCargoToEnumRole(membro.role);
+      const restoredCargo = mapRoleToCargoFormatado(membro.role || membro.cargo);
 
-      // Requisito 2: Atualização direta na tabela 'profiles' do Supabase
+      // Requisito: Atualização direta na tabela 'profiles' do Supabase com enum válido
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           cargo: restoredCargo,
+          role: chaveEnumRestaurada,
           status: 'ativo'
         })
         .eq('id', membro.id);

@@ -1,4 +1,12 @@
-import { UserProfile, UserRole, parseUserRole, getUserDisplayName, getRoleCargo } from '../types/auth';
+import {
+  UserProfile,
+  UserRole,
+  parseUserRole,
+  getUserDisplayName,
+  getRoleCargo,
+  mapCargoToEnumRole,
+  mapRoleToCargoFormatado
+} from '../types/auth';
 import { supabase } from '../lib/supabase/client';
 import { createClient } from '@supabase/supabase-js';
 
@@ -290,8 +298,8 @@ export async function cadastrarNovoMembroSupabase({
         {
           id: newId,
           nome,
-          role: role === 'admin' ? 'admin' : 'operador',
-          cargo
+          role: mapCargoToEnumRole(role),
+          cargo: mapRoleToCargoFormatado(cargo || role)
         }
       ]);
     } catch {
@@ -698,30 +706,21 @@ export async function atualizarCargoMembro({
       console.warn('Tentativa de sincronizar user_metadata no Supabase:', authErr);
     }
 
-    // 3. Atualizar na tabela profiles do Supabase se acessível
+    // 3. Atualizar na tabela profiles do Supabase
     try {
-      await supabase
+      const { error: profErr } = await supabase
         .from('profiles')
         .update({
-          role: role,
           cargo: finalCargo,
-          status: 'ativo',
-          ativo: true
+          role: finalCargo
         })
         .eq('id', id);
-    } catch {
-      try {
-        await supabase
-          .from('profiles')
-          .update({
-            role: role === 'admin' ? 'admin' : 'operador',
-            cargo: finalCargo,
-            status: 'ativo'
-          })
-          .eq('id', id);
-      } catch (e) {
-        console.warn('Não foi possível atualizar profiles no Supabase:', e);
+
+      if (profErr) {
+        console.error('Erro ao atualizar cargo e role em profiles:', profErr);
       }
+    } catch (e) {
+      console.error('Não foi possível atualizar profiles no Supabase:', e);
     }
 
     return { success: true };
@@ -930,8 +929,8 @@ export async function reativarMembroEquipe(
         .update({
           status: 'ativo',
           ativo: true,
-          cargo: restoredCargo,
-          role: (restoredRole as string) === 'admin' ? 'admin' : 'operador'
+          cargo: mapRoleToCargoFormatado(restoredCargo || restoredRole),
+          role: mapCargoToEnumRole(restoredRole)
         })
         .eq('id', id);
     } catch (e) {

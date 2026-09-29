@@ -150,6 +150,54 @@ export function getRoleShortLabel(role?: UserRole | string | null): string {
 }
 
 /**
+ * Mapeia qualquer string ou cargo amigável para o valor exato do enum user_role do Postgres:
+ * - 'admin'
+ * - 'servico_social'
+ * - 'recepcao'
+ */
+export function mapCargoToEnumRole(cargoOrRole?: string | null): UserRole {
+  if (!cargoOrRole) return 'recepcao';
+  const clean = cargoOrRole
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos (ex: Recepção -> recepcao)
+    .trim();
+
+  if (clean === 'admin' || clean.includes('diretor') || clean.includes('administrador')) {
+    return 'admin';
+  }
+  if (
+    clean === 'servico_social' ||
+    clean === 'servico-social' ||
+    clean === 'servicosocial' ||
+    clean === 'social' ||
+    clean.includes('social') ||
+    clean.includes('assist')
+  ) {
+    return 'servico_social';
+  }
+  if (
+    clean === 'recepcao' ||
+    clean.includes('recep') ||
+    clean.includes('voluntar') ||
+    clean.includes('triagem')
+  ) {
+    return 'recepcao';
+  }
+  return 'recepcao';
+}
+
+/**
+ * Retorna o nome formatado para exibição do cargo (ex: 'Admin', 'Serviço Social', 'Recepção')
+ */
+export function mapRoleToCargoFormatado(roleOrCargo?: string | null): string {
+  const enumRole = mapCargoToEnumRole(roleOrCargo);
+  if (enumRole === 'admin') return 'Admin';
+  if (enumRole === 'servico_social') return 'Serviço Social';
+  return 'Recepção';
+}
+
+/**
  * Classes Tailwind da badge colorida de acordo com o perfil
  */
 export function getRoleBadgeClasses(role?: UserRole | string | null): {
