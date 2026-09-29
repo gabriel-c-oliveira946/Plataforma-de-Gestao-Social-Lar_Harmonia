@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase/client';
 import { UserRole, mapCargoToEnumRole, mapRoleToCargoFormatado } from '../types/auth';
 import { atualizarCargoMembro, getEquipeList, saveMembroLocal, desativarMembroEquipe } from './equipe';
+import { notify } from '../context/ToastContext';
 
 export interface UpdateCargoParams {
   membroId: string;
@@ -36,8 +37,7 @@ export function formatarNomeCargo(cargoOuRole?: string | null): string {
 
 /**
  * Desativa o acesso de um membro da equipe no Supabase e armazenamento local:
- * - .update({ status: 'inativo', ativo: false, cargo: 'Inativo' }).eq('id', membroId)
- * - Exibe alert caso ocorra erro no Supabase
+ * - .update({ status: 'inativo', cargo: 'Inativo' }).eq('id', membroId)
  */
 export async function desativarUsuario({
   membroId,
@@ -68,8 +68,8 @@ export async function desativarUsuario({
 
       if (error) {
         console.error('Erro ao desativar membro no Supabase:', error);
-        if (showAlert && typeof window !== 'undefined') {
-          window.alert(`Erro ao desativar acesso: ${error.message}`);
+        if (showAlert) {
+          notify.error('Erro ao desativar acesso', error.message);
         }
         return { success: false, error: error.message };
       }
@@ -80,8 +80,8 @@ export async function desativarUsuario({
   } catch (err: any) {
     const errorMsg = err?.message || 'Erro inesperado ao desativar acesso.';
     console.error('Erro em desativarUsuario:', err);
-    if (showAlert && typeof window !== 'undefined') {
-      window.alert(`Erro ao desativar acesso: ${errorMsg}`);
+    if (showAlert) {
+      notify.error('Erro ao desativar acesso', errorMsg);
     }
     return { success: false, error: errorMsg };
   }
@@ -90,7 +90,6 @@ export async function desativarUsuario({
 /**
  * Atualiza o cargo de um membro da equipe no Supabase respeitando o enum 'user_role':
  * - .update({ cargo: novoCargoFormatado, role: chaveEnumMapeada }).eq('id', membroId)
- * - Tratamento de erro visível (alert e console.error)
  * - Sincronização local e retorno de status para recarregar a equipe
  */
 export async function atualizarCargoUsuario({
@@ -131,8 +130,8 @@ export async function atualizarCargoUsuario({
   } catch (err: any) {
     const errorMsg = err?.message || 'Erro inesperado ao atualizar cargo no Supabase.';
     console.error('Erro inesperado em atualizarCargoUsuario:', err);
-    if (showAlert && typeof window !== 'undefined') {
-      window.alert(`Erro: ${errorMsg}`);
+    if (showAlert) {
+      notify.error('Erro ao atualizar cargo', errorMsg);
     }
     return { success: false, error: errorMsg };
   }

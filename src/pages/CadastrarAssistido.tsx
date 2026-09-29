@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { assistidosService } from '../services/assistidosService';
 import {
   User,
@@ -31,6 +32,7 @@ import { TabMotivacoes } from '../components/cadastro/TabMotivacoes';
 
 export default function CadastrarAssistido() {
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
 
   // Estado estritamente local em memória das 5 abas
@@ -486,6 +488,7 @@ export default function CadastrarAssistido() {
       // Execução única e exclusiva na Aba 5
       await assistidosService.insert(payload);
 
+      toast.success('Assistido cadastrado com sucesso!', `${formData.nome_completo} foi registrado no sistema.`);
       setSuccessData({
         nome: formData.nome_completo.trim(),
         cpf: formData.cpf.trim() || 'Não informado',
@@ -496,12 +499,13 @@ export default function CadastrarAssistido() {
     } catch (err: any) {
       console.error('Erro ao salvar cadastro:', err);
       if (err.message?.includes('assistidos_cpf_key')) {
-        setErrorMsg('Este CPF já está cadastrado no sistema. Verifique os registros no Painel Geral para evitar duplicidades.');
+        const errorText = 'Este CPF já está cadastrado no sistema. Verifique os registros no Painel Geral para evitar duplicidades.';
+        toast.error('CPF duplicado', errorText);
+        setErrorMsg(errorText);
       } else {
-        setErrorMsg(
-          err.message ||
-            'Não foi possível registrar o cadastro no momento. Por favor, verifique os campos e tente novamente.'
-        );
+        const errorText = err.message || 'Não foi possível registrar o cadastro no momento. Por favor, verifique os campos e tente novamente.';
+        toast.error('Erro ao cadastrar assistido', errorText);
+        setErrorMsg(errorText);
       }
     } finally {
       setSubmitting(false);

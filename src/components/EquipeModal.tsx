@@ -41,6 +41,7 @@ import {
   removerMembroEquipe
 } from '../utils/equipe';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 interface EquipeModalProps {
   isOpen: boolean;
@@ -49,6 +50,7 @@ interface EquipeModalProps {
 
 export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
   const { user, role: currentRole, canManageTeam } = useAuth();
+  const toast = useToast();
   const [equipe, setEquipe] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -346,7 +348,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
 
       if (profileError) {
         console.error('Erro ao atualizar cargo no Supabase:', profileError);
-        alert(`Erro ao atualizar cargo no Supabase: ${profileError.message}`);
+        toast.error('Erro ao atualizar cargo', profileError.message);
         setErrorMsg(`Erro no banco de dados: ${profileError.message}`);
         return;
       }
@@ -363,14 +365,15 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
       await loadEquipe();
 
       // 4. Feedback visível de sucesso
-      alert('Cargo atualizado com sucesso!');
+      toast.success('Cargo atualizado com sucesso!', `Cargo de ${editingMembro.nome} alterado para ${novoCargoFormatado}`);
       setSuccessMsg(`Cargo de ${editingMembro.nome} alterado para ${novoCargoFormatado} com sucesso!`);
       setEditingMembro(null);
       setTimeout(() => setSuccessMsg(null), 4500);
     } catch (err: any) {
       console.error('Erro inesperado ao atualizar cargo:', err);
-      alert(`Erro inesperado: ${err?.message || 'Falha ao atualizar cargo do operador.'}`);
-      setErrorMsg(err?.message || 'Falha ao atualizar cargo do operador.');
+      const msg = err?.message || 'Falha ao atualizar cargo do operador.';
+      toast.error('Erro ao atualizar cargo', msg);
+      setErrorMsg(msg);
     } finally {
       setSavingEditRole(false);
     }
@@ -471,7 +474,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
 
         if (profileError) {
           console.error('Erro ao desativar membro no Supabase:', profileError);
-          alert(`Erro ao desativar acesso: ${profileError.message}`);
+          toast.error('Erro ao desativar acesso', profileError.message);
           setErrorMsg(`Erro: ${profileError.message}`);
           return;
         }
@@ -483,11 +486,12 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
         textoMensagem
       );
       if (!res.success) {
-        alert(`Erro ao desativar acesso: ${res.error}`);
+        toast.error('Erro ao desativar acesso', res.error || 'Não foi possível desativar o operador.');
         setErrorMsg(res.error || 'Não foi possível desativar o operador.');
         return;
       }
 
+      toast.success('Acesso desativado com sucesso!', `${membroToDelete.nome} foi desativado.`);
       setSuccessMsg('Acesso desativado com sucesso!');
       setMembroToDelete(null);
       setHabilitarMensagem(false);
@@ -497,7 +501,7 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     } catch (err: any) {
       const errorMsg = err?.message || 'Falha ao desativar o membro da equipe.';
       console.error('Erro em handleConfirmDelete:', err);
-      alert(`Erro ao desativar acesso: ${errorMsg}`);
+      toast.error('Erro ao desativar acesso', errorMsg);
       setErrorMsg(errorMsg);
     } finally {
       setDeletingMembro(false);

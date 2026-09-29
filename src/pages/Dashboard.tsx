@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase/client';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { assistidosService } from '../services/assistidosService';
 import { VerFichaModal, Assistido } from '../components/VerFichaModal';
 export type { Assistido };
@@ -190,6 +191,7 @@ export function getAssistidoFaixaRenda(item: Assistido): string {
 
 export default function Dashboard() {
   const { user, canDelete, canEdit } = useAuth();
+  const toast = useToast();
 
   // Estados principais de dados
   const [assistidos, setAssistidos] = useState<Assistido[]>([]);
@@ -880,16 +882,23 @@ export default function Dashboard() {
     try {
       await assistidosService.delete(assistidoToDelete.id);
 
+      // Atualiza o estado e recarrega a lista imediatamente na tela
       setAssistidos((prev) => prev.filter((a) => a.id !== assistidoToDelete.id));
+      await fetchAssistidos(false);
+
       if (selectedAssistido?.id === assistidoToDelete.id) {
         setSelectedAssistido(null);
       }
-      setSuccessMsg(`Assistido ${assistidoToDelete.nome_completo} excluído com sucesso.`);
+      toast.success('Ficha removida com sucesso!', `${assistidoToDelete.nome_completo} foi excluído do sistema.`);
+      setSuccessMsg('Ficha removida com sucesso!');
       setAssistidoToDelete(null);
       setTimeout(() => setSuccessMsg(null), 4000);
-    } catch {
-      setErrorMsg('Não foi possível excluir o cadastro do assistido. Verifique suas permissões.');
-      setTimeout(() => setErrorMsg(null), 5000);
+    } catch (err: any) {
+      console.error('Erro ao excluir assistido:', err);
+      const errorMsgDetails = err?.message || 'Não foi possível excluir o cadastro do assistido. Verifique suas permissões.';
+      toast.error('Erro ao excluir assistido', errorMsgDetails);
+      setErrorMsg(`Erro ao excluir assistido: ${errorMsgDetails}`);
+      setTimeout(() => setErrorMsg(null), 6000);
     } finally {
       setDeleting(false);
     }

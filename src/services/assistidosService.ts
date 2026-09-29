@@ -357,15 +357,16 @@ export const assistidosService = {
 
   // 4. Excluir assistido
   async delete(id: string): Promise<void> {
-    try {
-      const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-      if (hasUrl && isValidUUID(id)) {
-        await supabase.from('assistidos').delete().eq('id', id);
+    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+    if (hasUrl) {
+      const { error } = await supabase.from('assistidos').delete().eq('id', id);
+      if (error) {
+        console.error('Erro ao excluir assistido no Supabase:', error);
+        throw new Error(error.message);
       }
-    } catch (err) {
-      console.warn('Supabase indisponível no delete, removendo localmente:', err);
     }
 
+    // Apenas remova o registro do localStorage se o Supabase confirmar a exclusão com sucesso.
     const current = getStoredAssistidos();
     saveStoredAssistidos(current.filter((a) => a.id !== id));
   }
