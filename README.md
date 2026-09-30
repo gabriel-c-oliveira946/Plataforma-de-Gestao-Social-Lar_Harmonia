@@ -71,7 +71,7 @@ Layout adaptado para smartphones com abas de rolagem fluida, cabeçalho compacto
 
 ## 🤝 Créditos e Agradecimentos
 
-Projeto desenvolvido no âmbito da extensão universitária em parceria com a **Fundação Lar Harmonia**. Agradecimento especial à diretoria e equipe técnica pelo suporte na validação dos fluxos sociais.
+Projeto desenvolvido no âmbito da extensão universitária do SENAI CIMATEC em parceria com a **Fundação Lar Harmonia**. Agradecimento especial à diretoria e equipe técnica pelo suporte na validação dos fluxos sociais.
 
 
 ---
