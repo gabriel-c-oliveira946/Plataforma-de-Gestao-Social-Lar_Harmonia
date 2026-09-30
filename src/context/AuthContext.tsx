@@ -12,7 +12,7 @@ import {
   canRegisterAvaliacao,
   canManageTeam
 } from '../types/auth';
-import { isUsuarioInativo } from '../utils/equipe';
+import { isUsuarioInativo, saveInativo, saveMensagemDesativacao } from '../utils/equipe';
 
 export interface ProfileRecord {
   id: string;
@@ -22,6 +22,7 @@ export interface ProfileRecord {
   cargo?: string;
   status?: string;
   ativo?: boolean;
+  mensagem_desativacao?: string;
 }
 
 interface AuthContextType {
@@ -90,6 +91,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!error && data) {
         // Se a conta estiver inativa na tabela profiles, encerra a sessão
         if (data.status === 'inativo' || data.ativo === false || data.cargo === 'Inativo') {
+          if (activeUser.id) saveInativo(activeUser.id);
+          if (activeUser.email) saveInativo(activeUser.email);
+          if (data.mensagem_desativacao) {
+            if (activeUser.id) saveMensagemDesativacao(activeUser.id, data.mensagem_desativacao);
+            if (activeUser.email) saveMensagemDesativacao(activeUser.email, data.mensagem_desativacao);
+          }
           await supabase.auth.signOut();
           setSession(null);
           setUser(null);

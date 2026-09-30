@@ -800,16 +800,39 @@ export async function desativarMembroEquipe(
         .update({
           cargo: 'Inativo',
           status: 'inativo',
-          role: 'recepcao'
+          ativo: false,
+          mensagem_desativacao: trimmedMsg || null
         })
         .eq('id', id);
+
+      if (profErr && (profErr.message?.includes('mensagem_desativacao') || profErr.message?.includes('column'))) {
+        const retry1 = await supabase
+          .from('profiles')
+          .update({
+            cargo: 'Inativo',
+            status: 'inativo',
+            ativo: false
+          })
+          .eq('id', id);
+        profErr = retry1.error;
+      }
+
+      if (profErr && profErr.message?.includes('ativo')) {
+        const retry2 = await supabase
+          .from('profiles')
+          .update({
+            cargo: 'Inativo',
+            status: 'inativo'
+          })
+          .eq('id', id);
+        profErr = retry2.error;
+      }
 
       if (profErr && profErr.message?.includes('status')) {
         await supabase
           .from('profiles')
           .update({
-            cargo: 'Inativo',
-            role: 'recepcao'
+            cargo: 'Inativo'
           })
           .eq('id', id);
       }

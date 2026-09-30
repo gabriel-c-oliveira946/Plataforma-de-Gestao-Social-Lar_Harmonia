@@ -1,5 +1,14 @@
+export interface ItemCondicaoSaude {
+  id: string;
+  parentesco_tipo: 'assistido' | 'familiar';
+  parentesco_nome: string; // Ex: Mãe, Filho, Cônjuge
+  nome_doenca: string; // Nome / Descrição da Doença ou Condição
+  medicamento: string; // Medicamento / Como Adquire / Tratamento
+  observacoes: string; // Explicações e Observações
+}
+
 export interface CadastroFormData {
-  // Aba 1 - Identificação e Contato
+  // Aba 1 - Identificação Civil e Contato
   nome_completo: string;
   data_nascimento: string;
   idade: number | string;
@@ -20,8 +29,8 @@ export interface CadastroFormData {
   status_acompanhamento: 'Ativo / Em Acompanhamento' | 'Concluído' | 'Desistente / Evasão' | 'Pausado';
   data_saida?: string; // Data de Saída / Desligamento (YYYY-MM-DD, opcional)
 
-  // Aba 2 - Trabalho, Renda e Programas Sociais
-  atividade_remunerada: 'Sim' | 'Não';
+  // Aba 2 - Trabalho, Renda e Benefícios
+  atividade_remunerada: 'Sim' | 'Não' | 'Aposentado(a) / Pensionista' | string;
   ocupacao_atual: string; // Ocupação / Ramo
   turno_trabalho: string; // Manhã, Tarde, Noite, Integral
   dias_semana_trabalho_array: string[]; // ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -34,50 +43,68 @@ export interface CadastroFormData {
   programas_sociais: string[];
   outro_programa_social: string;
 
-  // Aba 3 - Moradia, Composição Familiar e Infraestrutura
+  // Aba 3 - Moradia e Composição Familiar
   composicao_familiar: number | string; // Pessoas no domicílio (padrão 1)
   mora_sozinho: boolean; // "Mora sozinho / Em situação de rua"
   quantidade_filhos: number | string; // padrão 0
   acesso_internet: 'Sim' | 'Não';
-  tipo_moradia: string; // Própria, Cedida, Alugada, Em situação de rua
+  tipo_moradia: string; // Própria, Cedida, Alugada, Em situação de rua, etc.
   agua_regularidade: 'Regular' | 'Irregular';
   energia_regularidade: 'Regular' | 'Irregular';
   servicos_basicos_gerais: 'Sim' | 'Parcialmente' | 'Irregular';
   observacoes_moradia: string;
 
-  // Aba 4 - Vulnerabilidades e Saúde da Família (Seção 11)
+  // Aba 4 - Vulnerabilidades e Saúde Familiar
   dificuldades_familia: string[];
-  // Saúde da família com parentesco e medicamento/como adquire
+
+  // Listas estruturadas de saúde com suporte a múltiplos itens por categoria
+  saude_doencas_cronicas_lista?: ItemCondicaoSaude[];
+  saude_dependencia_quimica_lista?: ItemCondicaoSaude[];
+  saude_mental_lista?: ItemCondicaoSaude[];
+  saude_deficiencia_lista?: ItemCondicaoSaude[];
+  saude_outra_situacao_lista?: ItemCondicaoSaude[];
+
+  // Saúde da família com parentesco, diagnóstico, medicamento e observações (legado/fallback)
   saude_doenca_cronica: boolean;
   saude_doenca_cronica_parentesco: string;
+  saude_doenca_cronica_nome?: string;
   saude_doenca_cronica_medicamento: string;
+  saude_doenca_cronica_obs?: string;
   saude_doenca_cronica_detalhe: string;
 
   saude_dependencia_quimica: boolean;
   saude_dependencia_quimica_parentesco: string;
+  saude_dependencia_quimica_nome?: string;
   saude_dependencia_quimica_medicamento: string;
+  saude_dependencia_quimica_obs?: string;
   saude_dependencia_quimica_detalhe: string;
 
   saude_mental: boolean;
   saude_mental_parentesco: string;
+  saude_mental_nome?: string;
   saude_mental_medicamento: string;
+  saude_mental_obs?: string;
   saude_mental_detalhe: string;
 
   saude_deficiencia: boolean;
   saude_deficiencia_parentesco: string;
+  saude_deficiencia_nome?: string;
   saude_deficiencia_medicamento: string;
+  saude_deficiencia_obs?: string;
   saude_deficiencia_detalhe: string;
 
   saude_outra_situacao: boolean;
   saude_outra_situacao_parentesco: string;
+  saude_outra_situacao_nome?: string;
   saude_outra_situacao_medicamento: string;
+  saude_outra_situacao_obs?: string;
   saude_outra_situacao_detalhe: string;
 
   rede_apoio_principal: string;
   fatores_risco_evasao: string[];
   servicos_flh_utilizados: string[];
 
-  // Aba 5 - Motivações, Percepção da FLH e Expectativas (Seção 12)
+  // Aba 5 - Motivações e Percepção da FLH
   motivo_busca_momento: string;
   oficina_pretendida: string;
   curso_e_preferencia: 'Sim' | 'Não';
@@ -145,29 +172,45 @@ export const INITIAL_CADASTRO_FORM: CadastroFormData = {
 
   // Aba 4
   dificuldades_familia: ['Nenhuma'],
+  saude_doencas_cronicas_lista: [],
+  saude_dependencia_quimica_lista: [],
+  saude_mental_lista: [],
+  saude_deficiencia_lista: [],
+  saude_outra_situacao_lista: [],
+
   saude_doenca_cronica: false,
-  saude_doenca_cronica_parentesco: '',
+  saude_doenca_cronica_parentesco: 'O próprio assistido',
+  saude_doenca_cronica_nome: '',
   saude_doenca_cronica_medicamento: '',
+  saude_doenca_cronica_obs: '',
   saude_doenca_cronica_detalhe: '',
 
   saude_dependencia_quimica: false,
-  saude_dependencia_quimica_parentesco: '',
+  saude_dependencia_quimica_parentesco: 'O próprio assistido',
+  saude_dependencia_quimica_nome: '',
   saude_dependencia_quimica_medicamento: '',
+  saude_dependencia_quimica_obs: '',
   saude_dependencia_quimica_detalhe: '',
 
   saude_mental: false,
-  saude_mental_parentesco: '',
+  saude_mental_parentesco: 'O próprio assistido',
+  saude_mental_nome: '',
   saude_mental_medicamento: '',
+  saude_mental_obs: '',
   saude_mental_detalhe: '',
 
   saude_deficiencia: false,
-  saude_deficiencia_parentesco: '',
+  saude_deficiencia_parentesco: 'O próprio assistido',
+  saude_deficiencia_nome: '',
   saude_deficiencia_medicamento: '',
+  saude_deficiencia_obs: '',
   saude_deficiencia_detalhe: '',
 
   saude_outra_situacao: false,
-  saude_outra_situacao_parentesco: '',
+  saude_outra_situacao_parentesco: 'O próprio assistido',
+  saude_outra_situacao_nome: '',
   saude_outra_situacao_medicamento: '',
+  saude_outra_situacao_obs: '',
   saude_outra_situacao_detalhe: '',
 
   rede_apoio_principal: 'Família',
@@ -261,7 +304,7 @@ export const TIPOS_MORADIA = [
   'Própria',
   'Cedida',
   'Alugada',
-  'Em situação de rua',
+  'Situação de Rua / Sem Moradia Fixa',
   'Não informado'
 ];
 
@@ -295,6 +338,7 @@ export const DIFICULDADES_OPCOES = [
   'Acesso limitado a saúde',
   'Sobrecarga de cuidados',
   'Violência',
+  'Vínculo familiar rompido / Sem contato',
   'Nenhuma'
 ];
 

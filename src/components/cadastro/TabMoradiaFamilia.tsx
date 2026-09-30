@@ -7,8 +7,8 @@ import {
   Zap,
   CheckCircle,
   HelpCircle,
-  ShieldAlert,
-  Baby
+  Baby,
+  ShieldAlert
 } from 'lucide-react';
 import { CadastroFormData, TIPOS_MORADIA } from '../../types/cadastro';
 import { handleIntegerKeyDown } from '../../utils/masks';
@@ -22,12 +22,45 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
   formData,
   setFormData
 }) => {
+  const isRua =
+    formData.em_situacao_rua ||
+    formData.tipo_moradia === 'Situação de Rua / Sem Moradia Fixa' ||
+    formData.tipo_moradia === 'Em situação de rua';
+
   const handleMoraSozinho = (checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
       mora_sozinho: checked,
       composicao_familiar: checked ? 1 : prev.composicao_familiar === 1 ? 1 : prev.composicao_familiar
     }));
+  };
+
+  const handleSelectTipoMoradia = (tipo: string) => {
+    const isSituacaoRua =
+      tipo === 'Situação de Rua / Sem Moradia Fixa' || tipo === 'Em situação de rua';
+
+    if (isSituacaoRua) {
+      setFormData((prev) => ({
+        ...prev,
+        tipo_moradia: 'Situação de Rua / Sem Moradia Fixa',
+        em_situacao_rua: true,
+        mora_sozinho: true,
+        composicao_familiar: 1,
+        endereco: 'Em situação de rua',
+        bairro: 'Sem moradia fixa',
+        agua_regularidade: 'Irregular',
+        energia_regularidade: 'Irregular',
+        servicos_basicos_gerais: 'Irregular'
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        tipo_moradia: tipo,
+        em_situacao_rua: false,
+        endereco: prev.endereco === 'Em situação de rua' ? '' : prev.endereco,
+        bairro: prev.bairro === 'Sem moradia fixa' ? '' : prev.bairro
+      }));
+    }
   };
 
   return (
@@ -49,8 +82,8 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
               type="number"
               min="1"
               max="25"
-              disabled={formData.mora_sozinho || formData.em_situacao_rua}
-              value={formData.mora_sozinho || formData.em_situacao_rua ? 1 : formData.composicao_familiar}
+              disabled={isRua || formData.mora_sozinho}
+              value={isRua || formData.mora_sozinho ? 1 : formData.composicao_familiar}
               onKeyDown={handleIntegerKeyDown}
               onChange={(e) =>
                 setFormData({
@@ -63,8 +96,8 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
             <label className="inline-flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer pt-1">
               <input
                 type="checkbox"
-                checked={formData.mora_sozinho || formData.em_situacao_rua}
-                disabled={formData.em_situacao_rua}
+                checked={isRua || formData.mora_sozinho}
+                disabled={isRua}
                 onChange={(e) => handleMoraSozinho(e.target.checked)}
                 className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
@@ -76,7 +109,7 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
           <div className="md:col-span-6 space-y-2">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Baby className="w-4 h-4 text-pink-500" />
-              Quantidade de Filhos
+              Quantidade de Filhos Dependentes
             </label>
             <input
               type="number"
@@ -103,12 +136,12 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
       <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-4 transition-colors">
         <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
           <Wifi className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-          Acesso à Internet em Casa
+          Acesso à Internet
         </h3>
 
         <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Possui acesso à internet em casa? <span className="text-red-500">*</span>
+            Possui acesso à internet regular? <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-6">
             <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-bold cursor-pointer">
@@ -141,7 +174,7 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
       <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
         <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
           <Home className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-          Condições de Moradia e Infraestrutura Básica
+          Moradia e Infraestrutura Básica
         </h3>
 
         <div className="space-y-6">
@@ -152,22 +185,15 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {TIPOS_MORADIA.map((tipo) => {
-                const isSelected = formData.tipo_moradia === tipo;
+                const isSelected =
+                  formData.tipo_moradia === tipo ||
+                  (tipo === 'Situação de Rua / Sem Moradia Fixa' && isRua);
+
                 return (
                   <button
                     key={tipo}
                     type="button"
-                    onClick={() => {
-                      const isRua = tipo === 'Em situação de rua';
-                      setFormData({
-                        ...formData,
-                        tipo_moradia: tipo,
-                        em_situacao_rua: isRua,
-                        mora_sozinho: isRua ? true : formData.mora_sozinho,
-                        endereco: isRua ? 'Em situação de rua' : formData.endereco === 'Em situação de rua' ? '' : formData.endereco,
-                        bairro: isRua ? 'Sem moradia fixa' : formData.bairro === 'Sem moradia fixa' ? '' : formData.bairro
-                      });
-                    }}
+                    onClick={() => handleSelectTipoMoradia(tipo)}
                     className={`p-3 rounded-lg border text-xs font-bold transition flex items-center justify-between cursor-pointer ${
                       isSelected
                         ? 'bg-amber-600 dark:bg-amber-500 text-white border-amber-700 dark:border-amber-600 shadow-xs'
@@ -182,99 +208,112 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
             </div>
           </div>
 
-          {/* Serviços Básicos: Água, Energia e Gerais */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl">
-            {/* Água */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Droplet className="w-4 h-4 text-emerald-600" />
-                Abastecimento de Água
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="agua_regularidade"
-                    value="Regular"
-                    checked={formData.agua_regularidade === 'Regular'}
-                    onChange={() => setFormData({ ...formData, agua_regularidade: 'Regular' })}
-                    className="text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Regular
+          {/* Regra Inteligente: Se for Situação de Rua, oculta/desativa perguntas de infraestrutura com badge explicativo */}
+          {isRua ? (
+            <div className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-2 animate-fadeIn">
+              <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">
+                <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Pessoa em Situação de Rua / Sem Moradia Fixa</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                As perguntas de infraestrutura residencial (abastecimento de água, energia elétrica e saneamento básico) foram dispensadas e desativadas automaticamente.
+              </p>
+            </div>
+          ) : (
+            /* Serviços Básicos: Água, Energia e Gerais para Moradia Fixa */
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl animate-fadeIn">
+              {/* Água */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Droplet className="w-4 h-4 text-emerald-600" />
+                  Abastecimento de Água
                 </label>
-                <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="agua_regularidade"
-                    value="Irregular"
-                    checked={formData.agua_regularidade === 'Irregular'}
-                    onChange={() => setFormData({ ...formData, agua_regularidade: 'Irregular' })}
-                    className="text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Irregular / Poço
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="agua_regularidade"
+                      value="Regular"
+                      checked={formData.agua_regularidade === 'Regular'}
+                      onChange={() => setFormData({ ...formData, agua_regularidade: 'Regular' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Regular
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="agua_regularidade"
+                      value="Irregular"
+                      checked={formData.agua_regularidade === 'Irregular'}
+                      onChange={() => setFormData({ ...formData, agua_regularidade: 'Irregular' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Irregular / Poço
+                  </label>
+                </div>
+              </div>
+
+              {/* Energia */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  Energia Elétrica
                 </label>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="energia_regularidade"
+                      value="Regular"
+                      checked={formData.energia_regularidade === 'Regular'}
+                      onChange={() => setFormData({ ...formData, energia_regularidade: 'Regular' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Regular
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="energia_regularidade"
+                      value="Irregular"
+                      checked={formData.energia_regularidade === 'Irregular'}
+                      onChange={() => setFormData({ ...formData, energia_regularidade: 'Irregular' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    Irregular
+                  </label>
+                </div>
+              </div>
+
+              {/* Serviços Gerais */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-emerald-600" />
+                  Saneamento e Serviços Gerais
+                </label>
+                <select
+                  value={formData.servicos_basicos_gerais}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      servicos_basicos_gerais: e.target.value as any
+                    })
+                  }
+                  className="w-full p-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-800 dark:text-white outline-none"
+                >
+                  <option value="Sim">Sim (Completos e Regulares)</option>
+                  <option value="Parcialmente">Parcialmente Regulares</option>
+                  <option value="Irregular">Irregulares / Precários</option>
+                </select>
               </div>
             </div>
-
-            {/* Energia */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-amber-500" />
-                Energia Elétrica
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="energia_regularidade"
-                    value="Regular"
-                    checked={formData.energia_regularidade === 'Regular'}
-                    onChange={() => setFormData({ ...formData, energia_regularidade: 'Regular' })}
-                    className="text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Regular
-                </label>
-                <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer">
-                  <input
-                    type="radio"
-                    name="energia_regularidade"
-                    value="Irregular"
-                    checked={formData.energia_regularidade === 'Irregular'}
-                    onChange={() => setFormData({ ...formData, energia_regularidade: 'Irregular' })}
-                    className="text-emerald-600 focus:ring-emerald-500"
-                  />
-                  Irregular
-                </label>
-              </div>
-            </div>
-
-            {/* Serviços Gerais */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-emerald-600" />
-                Serviços Básicos Gerais
-              </label>
-              <select
-                value={formData.servicos_basicos_gerais}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    servicos_basicos_gerais: e.target.value as any
-                  })
-                }
-                className="w-full p-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-800 dark:text-white outline-none"
-              >
-                <option value="Sim">Sim (Completos e Regulares)</option>
-                <option value="Parcialmente">Parcialmente Regulares</option>
-                <option value="Irregular">Irregulares / Precários</option>
-              </select>
-            </div>
-          </div>
+          )}
 
           {/* Observações Relevantes de Moradia */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Observações Relevantes sobre Moradia e Infraestrutura:
+              Observações Relevantes sobre Moradia e Território:
             </label>
             <textarea
               rows={3}
@@ -282,7 +321,7 @@ export const TabMoradiaFamilia: React.FC<TabMoradiaFamiliaProps> = ({
               onChange={(e) =>
                 setFormData({ ...formData, observacoes_moradia: e.target.value })
               }
-              placeholder="Ex: Área de encosta ou risco de deslizamento, infiltrações recorrentes, fossa séptica rudimentar..."
+              placeholder="Ex: Área de risco de alagamento/deslizamento, coabitação com parentes, abrigo institucional..."
               className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-400 rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-emerald-600 outline-none resize-none"
             />
           </div>

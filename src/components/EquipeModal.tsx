@@ -453,23 +453,37 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     try {
       const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
       if (hasUrl) {
-        // Atualização no Supabase da tabela profiles (cargo e status)
+        // Atualização no Supabase da tabela profiles (cargo, status, ativo e mensagem_desativacao)
         let { error: profileError } = await supabase
           .from('profiles')
           .update({
             status: 'inativo',
-            cargo: 'Inativo'
+            ativo: false,
+            cargo: 'Inativo',
+            mensagem_desativacao: textoMensagem || null
           })
           .eq('id', membroToDelete.id);
 
+        if (profileError && (profileError.message?.includes('mensagem_desativacao') || profileError.message?.includes('column'))) {
+          const retry1 = await supabase
+            .from('profiles')
+            .update({
+              status: 'inativo',
+              ativo: false,
+              cargo: 'Inativo'
+            })
+            .eq('id', membroToDelete.id);
+          profileError = retry1.error;
+        }
+
         if (profileError && profileError.message?.includes('status')) {
-          const retry = await supabase
+          const retry2 = await supabase
             .from('profiles')
             .update({
               cargo: 'Inativo'
             })
             .eq('id', membroToDelete.id);
-          profileError = retry.error;
+          profileError = retry2.error;
         }
 
         if (profileError) {

@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import {
   CadastroFormData,
-  INITIAL_CADASTRO_FORM
+  INITIAL_CADASTRO_FORM,
+  ItemCondicaoSaude
 } from '../types/cadastro';
 import { formatCPF, formatRG } from '../utils/masks';
 import { TabIdentificacao } from '../components/cadastro/TabIdentificacao';
@@ -238,6 +239,13 @@ export default function CadastrarAssistido() {
         if (formData.trabalhou_anteriormente === 'Sim' && formData.area_trabalho_anterior.trim()) {
           profissaoFinal += ` | Trabalho anterior: ${formData.area_trabalho_anterior.trim()}`;
         }
+      } else if (formData.atividade_remunerada === 'Aposentado(a) / Pensionista') {
+        const ocup = formData.ocupacao_atual.trim() || 'Aposentado(a) / Pensionista';
+        const turno = formData.turno_trabalho || 'Sem atividade extra';
+        profissaoFinal = `Aposentado(a) / Pensionista: ${ocup} | Atividade complementar: ${turno}`;
+        if (formData.trabalhou_anteriormente === 'Sim' && formData.area_trabalho_anterior.trim()) {
+          profissaoFinal += ` | Histórico anterior: ${formData.area_trabalho_anterior.trim()}`;
+        }
       } else {
         const partes: string[] = ['Sem ocupação formal no momento'];
         if (formData.desemprego_circunstancia.trim()) {
@@ -264,47 +272,126 @@ export default function CadastrarAssistido() {
         );
       }
 
-      // 4. Formatar Saúde da Família (Seção 11) - Array TEXT[]
+      // 4. Formatar Vulnerabilidades e Saúde Familiar - Array TEXT[] (suporte a múltiplos itens por categoria)
       const saudeFamiliaItens: string[] = [];
-      if (formData.saude_doenca_cronica) {
-        const p = formData.saude_doenca_cronica_parentesco.trim();
-        const m = formData.saude_doenca_cronica_medicamento.trim();
-        const info = p || m ? `${p || 'Assistido/Familiar'} (Med/Tratamento: ${m || 'Em uso'})` : (formData.saude_doenca_cronica_detalhe || 'Sim');
-        saudeFamiliaItens.push(`Doença Crônica: ${info}`);
-      }
-      if (formData.saude_dependencia_quimica) {
-        const p = formData.saude_dependencia_quimica_parentesco.trim();
-        const m = formData.saude_dependencia_quimica_medicamento.trim();
-        const info = p || m ? `${p || 'Familiar'} (${m || 'Sem acompanhamento especificado'})` : (formData.saude_dependencia_quimica_detalhe || 'Sim');
-        saudeFamiliaItens.push(`Dependência Química: ${info}`);
-      }
-      if (formData.saude_mental) {
-        const p = formData.saude_mental_parentesco.trim();
-        const m = formData.saude_mental_medicamento.trim();
-        const info = p || m ? `${p || 'Assistido/Familiar'} (${m || 'Acompanhamento em curso'})` : (formData.saude_mental_detalhe || 'Sim');
-        saudeFamiliaItens.push(`Saúde Mental: ${info}`);
-      }
-      if (formData.saude_deficiencia) {
-        const p = formData.saude_deficiencia_parentesco.trim();
-        const m = formData.saude_deficiencia_medicamento.trim();
-        const info = p || m ? `${p || 'Assistido/Familiar'} (${m || 'PcD / Síndrome'})` : (formData.saude_deficiencia_detalhe || 'Sim');
-        saudeFamiliaItens.push(`Deficiência/Síndrome: ${info}`);
-      }
-      if (formData.saude_outra_situacao) {
-        const p = formData.saude_outra_situacao_parentesco.trim();
-        const m = formData.saude_outra_situacao_medicamento.trim();
-        const info = p || m ? `${p || 'Familiar'} (${m || 'Situação relevante'})` : (formData.saude_outra_situacao_detalhe || 'Sim');
-        saudeFamiliaItens.push(`Outra Situação de Saúde: ${info}`);
-      }
+
+      const processCategoryList = (
+        categoria: string,
+        lista?: ItemCondicaoSaude[],
+        legadoAtivo?: boolean,
+        legadoParentesco?: string,
+        legadoNome?: string,
+        legadoMed?: string,
+        legadoObs?: string,
+        legadoDetalhe?: string
+      ) => {
+        if (Array.isArray(lista) && lista.length > 0) {
+          lista.forEach((item) => {
+            const p =
+              item.parentesco_tipo === 'assistido'
+                ? 'O próprio assistido'
+                : item.parentesco_nome.trim() || 'Familiar';
+            const n = item.nome_doenca.trim();
+            const m = item.medicamento.trim();
+            const o = item.observacoes.trim();
+
+            const parts: string[] = [];
+            if (n) parts.push(`Doença: ${n}`);
+            parts.push(`Paciente: ${p}`);
+            if (m) parts.push(`Med/Tratamento: ${m}`);
+            if (o) parts.push(`Obs: ${o}`);
+
+            saudeFamiliaItens.push(`${categoria}: ${parts.join(' | ')}`);
+          });
+        } else if (legadoAtivo) {
+          const p = legadoParentesco?.trim() || 'O próprio assistido';
+          const n = legadoNome?.trim();
+          const m = legadoMed?.trim();
+          const o = legadoObs?.trim();
+
+          const parts: string[] = [];
+          if (n) parts.push(`Doença: ${n}`);
+          parts.push(`Paciente: ${p}`);
+          if (m) parts.push(`Med/Tratamento: ${m}`);
+          if (o) parts.push(`Obs: ${o}`);
+
+          const result = parts.length > 0 ? parts.join(' | ') : (legadoDetalhe || 'Sim');
+          saudeFamiliaItens.push(`${categoria}: ${result}`);
+        }
+      };
+
+      processCategoryList(
+        'Doença Crônica',
+        formData.saude_doencas_cronicas_lista,
+        formData.saude_doenca_cronica,
+        formData.saude_doenca_cronica_parentesco,
+        formData.saude_doenca_cronica_nome,
+        formData.saude_doenca_cronica_medicamento,
+        formData.saude_doenca_cronica_obs,
+        formData.saude_doenca_cronica_detalhe
+      );
+      processCategoryList(
+        'Dependência Química',
+        formData.saude_dependencia_quimica_lista,
+        formData.saude_dependencia_quimica,
+        formData.saude_dependencia_quimica_parentesco,
+        formData.saude_dependencia_quimica_nome,
+        formData.saude_dependencia_quimica_medicamento,
+        formData.saude_dependencia_quimica_obs,
+        formData.saude_dependencia_quimica_detalhe
+      );
+      processCategoryList(
+        'Saúde Mental',
+        formData.saude_mental_lista,
+        formData.saude_mental,
+        formData.saude_mental_parentesco,
+        formData.saude_mental_nome,
+        formData.saude_mental_medicamento,
+        formData.saude_mental_obs,
+        formData.saude_mental_detalhe
+      );
+      processCategoryList(
+        'Deficiência/Síndrome',
+        formData.saude_deficiencia_lista,
+        formData.saude_deficiencia,
+        formData.saude_deficiencia_parentesco,
+        formData.saude_deficiencia_nome,
+        formData.saude_deficiencia_medicamento,
+        formData.saude_deficiencia_obs,
+        formData.saude_deficiencia_detalhe
+      );
+      processCategoryList(
+        'Outra Situação de Saúde',
+        formData.saude_outra_situacao_lista,
+        formData.saude_outra_situacao,
+        formData.saude_outra_situacao_parentesco,
+        formData.saude_outra_situacao_nome,
+        formData.saude_outra_situacao_medicamento,
+        formData.saude_outra_situacao_obs,
+        formData.saude_outra_situacao_detalhe
+      );
+
       const doencasCronicasFamiliaArray: string[] =
         saudeFamiliaItens.length > 0
           ? saudeFamiliaItens
           : ['Nenhuma condição registrada'];
 
       // 5. Tipos de Deficiência (TEXT[])
-      const tiposDeficienciaArray: string[] = formData.saude_deficiencia
-        ? [formData.saude_deficiencia_medicamento.trim() || formData.saude_deficiencia_parentesco.trim() || 'PcD / Síndrome familiar']
-        : ['Nenhuma'];
+      const defsList = (formData.saude_deficiencia_lista || [])
+        .map((d) => d.nome_doenca.trim() || d.medicamento.trim())
+        .filter(Boolean);
+
+      const tiposDeficienciaArray: string[] =
+        defsList.length > 0
+          ? defsList
+          : formData.saude_deficiencia
+          ? [
+              formData.saude_deficiencia_medicamento.trim() ||
+                formData.saude_deficiencia_nome?.trim() ||
+                formData.saude_deficiencia_parentesco.trim() ||
+                'PcD / Síndrome familiar'
+            ]
+          : ['Nenhuma'];
 
       // 6. Cursos Anteriores (TEXT[])
       let cursosAnterioresArray: string[] = [];
@@ -317,7 +404,7 @@ export default function CadastrarAssistido() {
         cursosAnterioresArray = ['Não participou de cursos anteriores'];
       }
 
-      // 7. Expectativa de Curso e Percepção da FLH (Seção 12)
+      // 7. Expectativa de Curso e Percepção da FLH
       const expectativasList: string[] = [];
       if (formData.curso_e_preferencia === 'Sim') {
         expectativasList.push('Curso de preferência do assistido');
@@ -461,7 +548,7 @@ export default function CadastrarAssistido() {
         tipo_moradia: tipoMoradiaFinal,
         servicos_basicos_regulares: formData.servicos_basicos_gerais === 'Sim',
 
-        // Aba 4 - Vulnerabilidades e Saúde da Família (Seção 11)
+        // Aba 4 - Vulnerabilidades e Saúde Familiar
         dificuldades_enfrentadas: sanitizeStringArray(formData.dificuldades_familia, ['Nenhuma']),
         rede_apoio: formData.rede_apoio_principal,
         fatores_risco_evasao: sanitizeStringArray(formData.fatores_risco_evasao, ['Nenhum']),
@@ -470,7 +557,7 @@ export default function CadastrarAssistido() {
         doencas_cronicas_familia: sanitizeStringArray(doencasCronicasFamiliaArray, ['Nenhuma condição registrada']),
         servicos_acompanhamento: sanitizeStringArray(formData.servicos_flh_utilizados, ['Nenhum / Nunca utilizou']),
 
-        // Aba 5 - Motivações, Percepção da FLH e Expectativas (Seção 12)
+        // Aba 5 - Motivações e Percepção da FLH
         motivo_busca: formData.motivo_busca_momento.trim() || null,
         expectativa_curso: expectativaCursoFinal,
         objetivo_profissional_3_meses:
@@ -523,30 +610,30 @@ export default function CadastrarAssistido() {
     },
     {
       id: 2,
-      title: 'Trabalho, Renda e Programas Sociais',
+      title: 'Trabalho, Renda e Benefícios',
       shortTitle: '2. Trabalho & Renda',
       description: 'Ocupação, dias, faixa de renda e benefícios',
       icon: Briefcase
     },
     {
       id: 3,
-      title: 'Moradia, Composição Familiar e Infraestrutura',
+      title: 'Moradia e Composição Familiar',
       shortTitle: '3. Moradia & Família',
-      description: 'Composição, filhos, internet e água/energia',
+      description: 'Composição, filhos, internet e moradia',
       icon: Home
     },
     {
       id: 4,
-      title: 'Vulnerabilidades e Saúde da Família',
+      title: 'Vulnerabilidades e Saúde Familiar',
       shortTitle: '4. Saúde & Vulnerabilidades',
-      description: 'Seção 11: Condições crônicas, remédios e apoio',
+      description: 'Condições de saúde, parentesco, remédios e apoio',
       icon: HeartPulse
     },
     {
       id: 5,
-      title: 'Motivações, Percepção da FLH e Expectativas',
+      title: 'Motivações e Percepção da FLH',
       shortTitle: '5. Motivações & FLH',
-      description: 'Seção 12: Oficinas, percepção da FLH e 3 meses',
+      description: 'Oficinas, expectativas e percepção da FLH',
       icon: GraduationCap
     }
   ];

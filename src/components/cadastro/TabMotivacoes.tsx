@@ -328,11 +328,11 @@ export const TabMotivacoes: React.FC<TabMotivacoesProps> = ({
         </div>
       </div>
 
-      {/* 4. Percepção da Fundação Lar Harmonia (Seção 12) */}
+      {/* 4. Percepção da Fundação Lar Harmonia */}
       <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs space-y-6 transition-colors">
         <h3 className="font-heading text-base font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
           <Heart className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-          Percepção da Fundação Lar Harmonia (Seção 12)
+          Motivações e Percepção da FLH
         </h3>
 
         <div className="space-y-5">

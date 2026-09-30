@@ -45,7 +45,8 @@ import {
   RotateCcw,
   Eye,
   Award,
-  Loader2
+  Loader2,
+  ZoomIn
 } from 'lucide-react';
 import { supabase } from '../lib/supabase/client';
 import { assistidosService } from '../services/assistidosService';
@@ -60,6 +61,7 @@ import { TabTrabalhoRenda } from './cadastro/TabTrabalhoRenda';
 import { TabMoradiaFamilia } from './cadastro/TabMoradiaFamilia';
 import { TabVulnerabilidades } from './cadastro/TabVulnerabilidades';
 import { TabMotivacoes } from './cadastro/TabMotivacoes';
+import { FichaAssistido, parseCondicoesSaudeParaImpressao } from './FichaAssistido';
 
 export interface Avaliacao4MesesParsed {
   data_avaliacao: string;
@@ -229,6 +231,9 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
 
   // 3. Trabalho & Ocupação
   const rawProf = assistido.profissao || '';
+  const isAposentado =
+    assistido.atividade_remunerada === 'Aposentado(a) / Pensionista' ||
+    rawProf.startsWith('Aposentado(a) / Pensionista');
   const isRemunerada = assistido.atividade_remunerada === 'Sim';
   let ocupacao = '';
   let diasSemanaArr: string[] = [];
@@ -241,6 +246,10 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
   profParts.forEach((p) => {
     if (p.startsWith('Ocupação:')) {
       ocupacao = p.replace('Ocupação:', '').trim();
+    } else if (p.startsWith('Aposentado(a) / Pensionista:')) {
+      ocupacao = p.replace('Aposentado(a) / Pensionista:', '').trim();
+    } else if (p.startsWith('Atividade complementar:')) {
+      turno = p.replace('Atividade complementar:', '').trim() || 'Sem atividade extra';
     } else if (p.startsWith('Dias:')) {
       const diasStr = p.replace('Dias:', '').trim();
       const allDias = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -258,8 +267,8 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
       trabalhouAntes = val.toLowerCase().includes('não') ? 'Não' : 'Sim';
       const areaMatch = val.match(/\(([^)]+)\)/);
       if (areaMatch) areaAnterior = areaMatch[1].trim();
-    } else if (p.startsWith('Trabalho anterior:')) {
-      areaAnterior = p.replace('Trabalho anterior:', '').trim();
+    } else if (p.startsWith('Trabalho anterior:') || p.startsWith('Histórico anterior:')) {
+      areaAnterior = p.replace(/^(Trabalho anterior|Histórico anterior):\s*/i, '').trim();
     } else if (p.includes('(Dias:') && p.includes('Turno:')) {
       const match = p.match(/^([^(]+)\s*\(Dias:\s*([^|]+)\|\s*Turno:\s*([^)]+)\)/);
       if (match) {
@@ -274,6 +283,9 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
   if (isRemunerada && !ocupacao && rawProf && !rawProf.includes('|')) {
     ocupacao = rawProf;
   }
+  if (isAposentado && !ocupacao) {
+    ocupacao = 'Aposentado(a) / Pensionista';
+  }
 
   // 4. Programas Sociais
   const rawProgs = Array.isArray(assistido.beneficios_sociais) ? assistido.beneficios_sociais : [];
@@ -286,92 +298,182 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
     return p;
   });
 
-  // 5. Saúde da Família (Seção 11)
+  // 5. Vulnerabilidades e Saúde Familiar
   const rawSaude = Array.isArray(assistido.doencas_cronicas_familia)
     ? assistido.doencas_cronicas_familia
     : typeof assistido.doencas_cronicas_familia === 'string'
     ? [assistido.doencas_cronicas_familia]
     : [];
 
-  let saudeCronica = false;
-  let saudeCronicaPar = '';
-  let saudeCronicaMed = '';
-
-  let saudeDep = false;
-  let saudeDepPar = '';
-  let saudeDepMed = '';
-
-  let saudeMental = false;
-  let saudeMentalPar = '';
-  let saudeMentalMed = '';
-
-  let saudeDef = Boolean(assistido.possui_deficiencia);
-  let saudeDefPar = '';
-  let saudeDefMed = '';
-
-  let saudeOutra = false;
-  let saudeOutraPar = '';
-  let saudeOutraMed = '';
-
-  rawSaude.forEach((item) => {
-    if (item.startsWith('Doença Crônica:')) {
-      saudeCronica = true;
-      const content = item.replace('Doença Crônica:', '').trim();
-      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
-      if (match) {
-        saudeCronicaPar = match[1].trim();
-        saudeCronicaMed = match[2].replace('Med/Tratamento:', '').replace('Tratamento:', '').trim();
-      } else {
-        saudeCronicaPar = content !== 'Sim' ? content : '';
-      }
-    } else if (item.startsWith('Dependência Química:')) {
-      saudeDep = true;
-      const content = item.replace('Dependência Química:', '').trim();
-      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
-      if (match) {
-        saudeDepPar = match[1].trim();
-        saudeDepMed = match[2].trim();
-      } else {
-        saudeDepPar = content !== 'Sim' ? content : '';
-      }
-    } else if (item.startsWith('Saúde Mental:')) {
-      saudeMental = true;
-      const content = item.replace('Saúde Mental:', '').trim();
-      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
-      if (match) {
-        saudeMentalPar = match[1].trim();
-        saudeMentalMed = match[2].trim();
-      } else {
-        saudeMentalPar = content !== 'Sim' ? content : '';
-      }
-    } else if (item.startsWith('Deficiência/Síndrome:') || item.startsWith('Deficiência:')) {
-      saudeDef = true;
-      const content = item.replace(/Deficiência(\/Síndrome)?:/, '').trim();
-      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
-      if (match) {
-        saudeDefPar = match[1].trim();
-        saudeDefMed = match[2].trim();
-      } else {
-        saudeDefPar = content !== 'Sim' ? content : '';
-      }
-    } else if (item.startsWith('Outra Situação de Saúde:')) {
-      saudeOutra = true;
-      const content = item.replace('Outra Situação de Saúde:', '').trim();
-      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
-      if (match) {
-        saudeOutraPar = match[1].trim();
-        saudeOutraMed = match[2].trim();
-      } else {
-        saudeOutraPar = content !== 'Sim' ? content : '';
+  const parseHealthItemToStruct = (item: string, catKey: string, idx: number) => {
+    let content = item;
+    const prefixes = [
+      'Doença Crônica:',
+      'Dependência Química:',
+      'Saúde Mental:',
+      'Deficiência/Síndrome:',
+      'Deficiência:',
+      'Outra Situação de Saúde:'
+    ];
+    for (const pfx of prefixes) {
+      if (content.startsWith(pfx)) {
+        content = content.slice(pfx.length).trim();
+        break;
       }
     }
-  });
 
-  // Se possuir deficiência na coluna booleana do assistido
-  if (assistido.possui_deficiencia && !saudeDef) {
-    saudeDef = true;
+    let nome = '';
+    let parentescoStr = 'O próprio assistido';
+    let med = '';
+    let obs = '';
+
+    if (content.includes('|')) {
+      const parts = content.split('|').map((p) => p.trim());
+      parts.forEach((p) => {
+        if (p.startsWith('Doença:') || p.startsWith('Doenca:')) {
+          nome = p.replace(/^Doen[cç]a:\s*/i, '').trim();
+        } else if (p.startsWith('Paciente:')) {
+          parentescoStr = p.replace(/^Paciente:\s*/i, '').trim();
+        } else if (
+          p.startsWith('Med/Tratamento:') ||
+          p.startsWith('Med:') ||
+          p.startsWith('Medicamento:') ||
+          p.startsWith('Tratamento:')
+        ) {
+          med = p.replace(/^(Med\/Tratamento|Med|Medicamento|Tratamento):\s*/i, '').trim();
+        } else if (
+          p.startsWith('Obs:') ||
+          p.startsWith('Observacao:') ||
+          p.startsWith('Observação:')
+        ) {
+          obs = p.replace(/^(Obs|Observacao|Observação):\s*/i, '').trim();
+        } else if (p && p !== 'Sim' && p !== 'Não') {
+          if (!nome) nome = p;
+        }
+      });
+    } else {
+      const match = content.match(/^([^(]+)\s*\(([^)]+)\)/);
+      if (match) {
+        parentescoStr = match[1].trim();
+        med = match[2].replace(/^(Med\/Tratamento|Med|Tratamento):\s*/i, '').trim();
+      } else if (content !== 'Sim' && content !== 'Não') {
+        if (
+          content.includes('Assistido') ||
+          content.includes('Mãe') ||
+          content.includes('Filho') ||
+          content.includes('Pai') ||
+          content.includes('Espos') ||
+          content.includes('Cônjuge')
+        ) {
+          parentescoStr = content;
+        } else {
+          nome = content;
+        }
+      }
+    }
+
+    const isProprio = !parentescoStr || parentescoStr === 'O próprio assistido';
+    return {
+      id: `edit_${catKey}_${idx}_${Date.now()}`,
+      parentesco_tipo: (isProprio ? 'assistido' : 'familiar') as 'assistido' | 'familiar',
+      parentesco_nome: isProprio ? '' : parentescoStr,
+      nome_doenca: nome,
+      medicamento: med,
+      observacoes: obs,
+      ativo: true,
+      parentesco: parentescoStr || 'O próprio assistido',
+      med,
+      obs,
+      detalhe: content
+    };
+  };
+
+  const getCategoryListParsed = (prefixes: string[], catKey: string) => {
+    const matching = rawSaude.filter((str) => prefixes.some((pfx) => str.startsWith(pfx)));
+    return matching.map((item, idx) => parseHealthItemToStruct(item, catKey, idx));
+  };
+
+  const saudeCronicaList = getCategoryListParsed(['Doença Crônica:'], 'cronica');
+  const saudeDepList = getCategoryListParsed(['Dependência Química:'], 'dependencia');
+  const saudeMentalList = getCategoryListParsed(['Saúde Mental:'], 'mental');
+  let saudeDefList = getCategoryListParsed(['Deficiência/Síndrome:', 'Deficiência:'], 'deficiencia');
+  const saudeOutraList = getCategoryListParsed(['Outra Situação de Saúde:'], 'outra');
+
+  if (saudeDefList.length === 0 && assistido.possui_deficiencia) {
+    const defs =
+      Array.isArray(assistido.tipos_deficiencia) && assistido.tipos_deficiencia.length > 0
+        ? assistido.tipos_deficiencia.filter((d) => d && d !== 'Nenhuma').join(', ')
+        : 'Deficiência física/mental';
+    saudeDefList = [
+      {
+        id: `edit_def_auto_${Date.now()}`,
+        parentesco_tipo: 'assistido',
+        parentesco_nome: '',
+        nome_doenca: defs,
+        medicamento: '',
+        observacoes: 'Deficiência identificada no cadastro',
+        ativo: true,
+        parentesco: 'O próprio assistido',
+        med: '',
+        obs: 'Deficiência identificada no cadastro',
+        detalhe: defs
+      }
+    ];
+  }
+
+  const saudeCronicaData = saudeCronicaList[0] || {
+    ativo: false,
+    nome: '',
+    parentesco: 'O próprio assistido',
+    med: '',
+    obs: '',
+    detalhe: ''
+  };
+  const saudeDepData = saudeDepList[0] || {
+    ativo: false,
+    nome: '',
+    parentesco: 'O próprio assistido',
+    med: '',
+    obs: '',
+    detalhe: ''
+  };
+  const saudeMentalData = saudeMentalList[0] || {
+    ativo: false,
+    nome: '',
+    parentesco: 'O próprio assistido',
+    med: '',
+    obs: '',
+    detalhe: ''
+  };
+  const saudeDefData = saudeDefList[0] || {
+    ativo: false,
+    nome: '',
+    parentesco: 'O próprio assistido',
+    med: '',
+    obs: '',
+    detalhe: ''
+  };
+  const saudeOutraData = saudeOutraList[0] || {
+    ativo: false,
+    nome: '',
+    parentesco: 'O próprio assistido',
+    med: '',
+    obs: '',
+    detalhe: ''
+  };
+
+  const saudeDef = saudeDefList.length > 0 || Boolean(assistido.possui_deficiencia);
+  const saudeDefNome = saudeDefData.nome_doenca || '';
+  const saudeDefPar = saudeDefData.parentesco || 'O próprio assistido';
+  const saudeDefMed = saudeDefData.medicamento || saudeDefData.med || '';
+  const saudeDefObs = saudeDefData.observacoes || saudeDefData.obs || '';
+
+  if (assistido.possui_deficiencia && !saudeDefMed) {
     if (Array.isArray(assistido.tipos_deficiencia) && assistido.tipos_deficiencia.length > 0) {
-      saudeDefMed = assistido.tipos_deficiencia.filter((d) => d && d !== 'Nenhuma').join(', ');
+      const defsStr = assistido.tipos_deficiencia.filter((d) => d && d !== 'Nenhuma').join(', ');
+      if (defsStr && !saudeDefNome) {
+        // use as name/med
+      }
     }
   }
 
@@ -477,7 +579,7 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
       return match && match[1]?.trim() ? match[1].trim() : '';
     })(),
 
-    atividade_remunerada: isRemunerada ? 'Sim' : 'Não',
+    atividade_remunerada: isAposentado ? 'Aposentado(a) / Pensionista' : isRemunerada ? 'Sim' : 'Não',
     ocupacao_atual: ocupacao,
     turno_trabalho: turno,
     dias_semana_trabalho_array: diasSemanaArr,
@@ -494,7 +596,7 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
     mora_sozinho: assistido.composicao_familiar === 1 || isRua,
     quantidade_filhos: filhos,
     acesso_internet: assistido.acesso_internet === 'Sim' ? 'Sim' : 'Não',
-    tipo_moradia: tipoMoradia,
+    tipo_moradia: isRua ? 'Situação de Rua / Sem Moradia Fixa' : tipoMoradia,
     agua_regularidade: agua,
     energia_regularidade: energia,
     servicos_basicos_gerais: servicosGerais,
@@ -505,30 +607,46 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
       assistido.dificuldades_enfrentadas.length > 0
         ? assistido.dificuldades_enfrentadas
         : ['Nenhuma'],
-    saude_doenca_cronica: saudeCronica,
-    saude_doenca_cronica_parentesco: saudeCronicaPar,
-    saude_doenca_cronica_medicamento: saudeCronicaMed,
-    saude_doenca_cronica_detalhe: '',
+    saude_doencas_cronicas_lista: saudeCronicaList,
+    saude_dependencia_quimica_lista: saudeDepList,
+    saude_mental_lista: saudeMentalList,
+    saude_deficiencia_lista: saudeDefList,
+    saude_outra_situacao_lista: saudeOutraList,
 
-    saude_dependencia_quimica: saudeDep,
-    saude_dependencia_quimica_parentesco: saudeDepPar,
-    saude_dependencia_quimica_medicamento: saudeDepMed,
-    saude_dependencia_quimica_detalhe: '',
+    saude_doenca_cronica: saudeCronicaData.ativo,
+    saude_doenca_cronica_parentesco: saudeCronicaData.parentesco,
+    saude_doenca_cronica_nome: saudeCronicaData.nome_doenca,
+    saude_doenca_cronica_medicamento: saudeCronicaData.med,
+    saude_doenca_cronica_obs: saudeCronicaData.obs,
+    saude_doenca_cronica_detalhe: saudeCronicaData.detalhe,
 
-    saude_mental: saudeMental,
-    saude_mental_parentesco: saudeMentalPar,
-    saude_mental_medicamento: saudeMentalMed,
-    saude_mental_detalhe: '',
+    saude_dependencia_quimica: saudeDepData.ativo,
+    saude_dependencia_quimica_parentesco: saudeDepData.parentesco,
+    saude_dependencia_quimica_nome: saudeDepData.nome_doenca,
+    saude_dependencia_quimica_medicamento: saudeDepData.med,
+    saude_dependencia_quimica_obs: saudeDepData.obs,
+    saude_dependencia_quimica_detalhe: saudeDepData.detalhe,
+
+    saude_mental: saudeMentalData.ativo,
+    saude_mental_parentesco: saudeMentalData.parentesco,
+    saude_mental_nome: saudeMentalData.nome_doenca,
+    saude_mental_medicamento: saudeMentalData.med,
+    saude_mental_obs: saudeMentalData.obs,
+    saude_mental_detalhe: saudeMentalData.detalhe,
 
     saude_deficiencia: saudeDef,
     saude_deficiencia_parentesco: saudeDefPar,
+    saude_deficiencia_nome: saudeDefNome,
     saude_deficiencia_medicamento: saudeDefMed,
-    saude_deficiencia_detalhe: '',
+    saude_deficiencia_obs: saudeDefObs,
+    saude_deficiencia_detalhe: saudeDefData.detalhe,
 
-    saude_outra_situacao: saudeOutra,
-    saude_outra_situacao_parentesco: saudeOutraPar,
-    saude_outra_situacao_medicamento: saudeOutraMed,
-    saude_outra_situacao_detalhe: '',
+    saude_outra_situacao: saudeOutraData.ativo,
+    saude_outra_situacao_parentesco: saudeOutraData.parentesco,
+    saude_outra_situacao_nome: saudeOutraData.nome_doenca,
+    saude_outra_situacao_medicamento: saudeOutraData.med,
+    saude_outra_situacao_obs: saudeOutraData.obs,
+    saude_outra_situacao_detalhe: saudeOutraData.detalhe,
 
     rede_apoio_principal: assistido.rede_apoio || 'Não possui',
     fatores_risco_evasao:
@@ -571,6 +689,18 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
   const toast = useToast();
   const canUserDelete = isAdmin || canDelete;
   const [showDirectConfirmModal, setShowDirectConfirmModal] = useState(false);
+  const [fotoZoomUrl, setFotoZoomUrl] = useState<string | null>(null);
+
+  // Fecha o Lightbox da foto ao pressionar ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && fotoZoomUrl) {
+        setFotoZoomUrl(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fotoZoomUrl]);
 
   // Auditoria do Operador (Requisito 3): Consulta na tabela 'profiles' usando o ID do operador
   const [operadorCadastro, setOperadorCadastro] = useState<{ nome: string; cargo: string }>(() =>
@@ -895,6 +1025,16 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         ) {
           profissaoFinal += ` | Trabalho anterior: ${editFormData.area_trabalho_anterior.trim()}`;
         }
+      } else if (editFormData.atividade_remunerada === 'Aposentado(a) / Pensionista') {
+        const ocup = editFormData.ocupacao_atual.trim() || 'Aposentado(a) / Pensionista';
+        const turno = editFormData.turno_trabalho || 'Sem atividade extra';
+        profissaoFinal = `Aposentado(a) / Pensionista: ${ocup} | Atividade complementar: ${turno}`;
+        if (
+          editFormData.trabalhou_anteriormente === 'Sim' &&
+          editFormData.area_trabalho_anterior.trim()
+        ) {
+          profissaoFinal += ` | Histórico anterior: ${editFormData.area_trabalho_anterior.trim()}`;
+        }
       } else {
         const partes: string[] = ['Sem ocupação formal no momento'];
         if (editFormData.desemprego_circunstancia.trim()) {
@@ -921,53 +1061,105 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         );
       }
 
-      // 3. Saúde da Família (Seção 11)
+      // 3. Vulnerabilidades e Saúde Familiar (Suporte a múltiplos registros por categoria)
       const saudeFamiliaItens: string[] = [];
-      if (editFormData.saude_doenca_cronica) {
-        const p = editFormData.saude_doenca_cronica_parentesco.trim();
-        const m = editFormData.saude_doenca_cronica_medicamento.trim();
-        const info =
-          p || m
-            ? `${p || 'Assistido/Familiar'} (Med/Tratamento: ${m || 'Em uso'})`
-            : editFormData.saude_doenca_cronica_detalhe || 'Sim';
-        saudeFamiliaItens.push(`Doença Crônica: ${info}`);
-      }
-      if (editFormData.saude_dependencia_quimica) {
-        const p = editFormData.saude_dependencia_quimica_parentesco.trim();
-        const m = editFormData.saude_dependencia_quimica_medicamento.trim();
-        const info =
-          p || m
-            ? `${p || 'Familiar'} (${m || 'Sem acompanhamento especificado'})`
-            : editFormData.saude_dependencia_quimica_detalhe || 'Sim';
-        saudeFamiliaItens.push(`Dependência Química: ${info}`);
-      }
-      if (editFormData.saude_mental) {
-        const p = editFormData.saude_mental_parentesco.trim();
-        const m = editFormData.saude_mental_medicamento.trim();
-        const info =
-          p || m
-            ? `${p || 'Assistido/Familiar'} (${m || 'Acompanhamento em curso'})`
-            : editFormData.saude_mental_detalhe || 'Sim';
-        saudeFamiliaItens.push(`Saúde Mental: ${info}`);
-      }
-      if (editFormData.saude_deficiencia) {
-        const p = editFormData.saude_deficiencia_parentesco.trim();
-        const m = editFormData.saude_deficiencia_medicamento.trim();
-        const info =
-          p || m
-            ? `${p || 'Assistido/Familiar'} (${m || 'PcD / Síndrome'})`
-            : editFormData.saude_deficiencia_detalhe || 'Sim';
-        saudeFamiliaItens.push(`Deficiência/Síndrome: ${info}`);
-      }
-      if (editFormData.saude_outra_situacao) {
-        const p = editFormData.saude_outra_situacao_parentesco.trim();
-        const m = editFormData.saude_outra_situacao_medicamento.trim();
-        const info =
-          p || m
-            ? `${p || 'Familiar'} (${m || 'Situação relevante'})`
-            : editFormData.saude_outra_situacao_detalhe || 'Sim';
-        saudeFamiliaItens.push(`Outra Situação de Saúde: ${info}`);
-      }
+
+      const processCategoryList = (
+        categoria: string,
+        lista?: any[],
+        legadoAtivo?: boolean,
+        legadoParentesco?: string,
+        legadoNome?: string,
+        legadoMed?: string,
+        legadoObs?: string,
+        legadoDetalhe?: string
+      ) => {
+        if (Array.isArray(lista) && lista.length > 0) {
+          lista.forEach((item) => {
+            const p =
+              item.parentesco_tipo === 'assistido'
+                ? 'O próprio assistido'
+                : item.parentesco_nome?.trim() || 'Familiar';
+            const n = item.nome_doenca?.trim() || '';
+            const m = item.medicamento?.trim() || '';
+            const o = item.observacoes?.trim() || '';
+
+            const parts: string[] = [];
+            if (n) parts.push(`Doença: ${n}`);
+            parts.push(`Paciente: ${p}`);
+            if (m) parts.push(`Med/Tratamento: ${m}`);
+            if (o) parts.push(`Obs: ${o}`);
+
+            saudeFamiliaItens.push(`${categoria}: ${parts.join(' | ')}`);
+          });
+        } else if (legadoAtivo) {
+          const p = legadoParentesco?.trim() || 'O próprio assistido';
+          const n = legadoNome?.trim();
+          const m = legadoMed?.trim();
+          const o = legadoObs?.trim();
+
+          const parts: string[] = [];
+          if (n) parts.push(`Doença: ${n}`);
+          parts.push(`Paciente: ${p}`);
+          if (m) parts.push(`Med/Tratamento: ${m}`);
+          if (o) parts.push(`Obs: ${o}`);
+
+          const result = parts.length > 0 ? parts.join(' | ') : (legadoDetalhe || 'Sim');
+          saudeFamiliaItens.push(`${categoria}: ${result}`);
+        }
+      };
+
+      processCategoryList(
+        'Doença Crônica',
+        editFormData.saude_doencas_cronicas_lista,
+        editFormData.saude_doenca_cronica,
+        editFormData.saude_doenca_cronica_parentesco,
+        editFormData.saude_doenca_cronica_nome,
+        editFormData.saude_doenca_cronica_medicamento,
+        editFormData.saude_doenca_cronica_obs,
+        editFormData.saude_doenca_cronica_detalhe
+      );
+      processCategoryList(
+        'Dependência Química',
+        editFormData.saude_dependencia_quimica_lista,
+        editFormData.saude_dependencia_quimica,
+        editFormData.saude_dependencia_quimica_parentesco,
+        editFormData.saude_dependencia_quimica_nome,
+        editFormData.saude_dependencia_quimica_medicamento,
+        editFormData.saude_dependencia_quimica_obs,
+        editFormData.saude_dependencia_quimica_detalhe
+      );
+      processCategoryList(
+        'Saúde Mental',
+        editFormData.saude_mental_lista,
+        editFormData.saude_mental,
+        editFormData.saude_mental_parentesco,
+        editFormData.saude_mental_nome,
+        editFormData.saude_mental_medicamento,
+        editFormData.saude_mental_obs,
+        editFormData.saude_mental_detalhe
+      );
+      processCategoryList(
+        'Deficiência/Síndrome',
+        editFormData.saude_deficiencia_lista,
+        editFormData.saude_deficiencia,
+        editFormData.saude_deficiencia_parentesco,
+        editFormData.saude_deficiencia_nome,
+        editFormData.saude_deficiencia_medicamento,
+        editFormData.saude_deficiencia_obs,
+        editFormData.saude_deficiencia_detalhe
+      );
+      processCategoryList(
+        'Outra Situação de Saúde',
+        editFormData.saude_outra_situacao_lista,
+        editFormData.saude_outra_situacao,
+        editFormData.saude_outra_situacao_parentesco,
+        editFormData.saude_outra_situacao_nome,
+        editFormData.saude_outra_situacao_medicamento,
+        editFormData.saude_outra_situacao_obs,
+        editFormData.saude_outra_situacao_detalhe
+      );
+
       const doencasCronicasFamiliaArray: string[] =
         saudeFamiliaItens.length > 0
           ? saudeFamiliaItens
@@ -1571,6 +1763,13 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         subtitulo: 'Física, auditiva, visual, intelectual, autismo (TEA), etc.',
         registrada: false,
         detalhes: 'Nenhuma condição relatada'
+      },
+      {
+        id: 'outra',
+        titulo: 'Outra Situação Relevante de Saúde',
+        subtitulo: 'Sequelas de AVC, membro acamado, neoplasias, cirurgias recentes',
+        registrada: false,
+        detalhes: 'Nenhuma condição relatada'
       }
     ];
 
@@ -1594,6 +1793,10 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         const val = item.replace(/Deficiência(\/Síndrome)?:/, '').trim();
         rows[3].registrada = true;
         rows[3].detalhes = val && val !== 'Sim' ? val : 'Condição registrada na família';
+      } else if (item.startsWith('Outra Situação de Saúde:')) {
+        const val = item.replace('Outra Situação de Saúde:', '').trim();
+        rows[4].registrada = true;
+        rows[4].detalhes = val && val !== 'Sim' ? val : 'Condição registrada na família';
       }
     });
 
@@ -1636,58 +1839,94 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
 
   return (
     <>
-      <div className="no-print fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800">
+      <div className="no-print fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+        <div className="bg-white dark:bg-slate-900 rounded-none sm:rounded-3xl max-w-5xl w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border-0 sm:border border-gray-100 dark:border-slate-800">
         
-        {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              {fotoPreview || assistido.foto_url ? (
-                <img
-                  src={fotoPreview || assistido.foto_url || ''}
-                  alt={assistido.nome_completo}
-                  className="w-13 h-13 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm ring-2 ring-emerald-500/20"
-                />
-              ) : (
-                <div className="w-13 h-13 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                  {assistido.nome_completo ? assistido.nome_completo.charAt(0).toUpperCase() : 'A'}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-heading text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                  {assistido.nome_completo}
-                </h3>
-                {renderStatusBadge(
-                  isEditingData ? editFormData.status_atendimento : assistido.status_curso
-                )}
-                {isEditingData && (
-                  <span className="px-2.5 py-0.5 bg-amber-600 text-white text-[10px] font-black rounded-full uppercase tracking-wider shadow-2xs">
-                    Modo Edição Ativo
-                  </span>
+        {/* Cabeçalho do Modal Compacto e Responsivo */}
+        <div className="px-3 sm:px-6 py-2.5 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-2.5 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+          {/* Linha Superior: Foto, Dados Principais e Botão Fechar */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div
+                className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 border-emerald-600/30 dark:border-emerald-500/40 shadow-md flex-shrink-0 relative group cursor-pointer"
+                onClick={() => {
+                  const targetUrl = fotoPreview || assistido.foto_url;
+                  if (targetUrl) {
+                    setFotoZoomUrl(targetUrl);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title={fotoPreview || assistido.foto_url ? 'Clique para ampliar a foto' : undefined}
+              >
+                {fotoPreview || assistido.foto_url ? (
+                  <>
+                    <img
+                      src={fotoPreview || assistido.foto_url || ''}
+                      alt={assistido.nome_completo}
+                      className="w-full h-full object-cover transition transform group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1 p-1 text-center">
+                      <ZoomIn className="w-4 h-4 text-white drop-shadow" />
+                      <span className="text-[9px] font-bold leading-tight drop-shadow hidden sm:inline">Ampliar</span>
+                    </div>
+                    <div className="absolute bottom-1 right-1 p-1 rounded-md bg-black/60 text-white backdrop-blur-xs group-hover:hidden">
+                      <ZoomIn className="w-3 h-3" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-emerald-700 text-white flex flex-col items-center justify-center font-bold shadow-sm">
+                    <span className="text-xl sm:text-3xl">
+                      {assistido.nome_completo ? assistido.nome_completo.charAt(0).toUpperCase() : 'A'}
+                    </span>
+                    <span className="text-[9px] font-normal text-emerald-100 mt-0.5">Sem foto</span>
+                  </div>
                 )}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
-                <span>
-                  Oficina:{' '}
-                  <strong className="text-slate-800 dark:text-slate-200 font-bold">
-                    {isEditingData
-                      ? editFormData.oficina_pretendida
-                      : assistido.curso_pretendido || 'Geral'}
-                  </strong>
-                </span>
-                <span>•</span>
-                <span>CPF: {assistido.cpf || 'Não informado'}</span>
-              </p>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h3 className="font-heading text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">
+                    {assistido.nome_completo}
+                  </h3>
+                  {renderStatusBadge(
+                    isEditingData ? editFormData.status_atendimento : assistido.status_curso
+                  )}
+                  {isEditingData && (
+                    <span className="px-2 py-0.5 bg-amber-600 text-white text-[9px] sm:text-[10px] font-black rounded-full uppercase tracking-wider shadow-2xs">
+                      Modo Edição Ativo
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1 flex flex-wrap items-center gap-x-2">
+                  <span>
+                    Oficina:{' '}
+                    <strong className="text-slate-800 dark:text-slate-200 font-bold">
+                      {isEditingData
+                        ? editFormData.oficina_pretendida
+                        : assistido.curso_pretendido || 'Geral'}
+                    </strong>
+                  </span>
+                  <span>•</span>
+                  <span>CPF: {assistido.cpf || 'Não informado'}</span>
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition cursor-pointer flex-shrink-0"
+              title="Fechar Janela"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Linha de Ações Rápidas (Organizada em linha no mobile para poupar espaço) */}
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none w-full">
             {!isEditingData ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full">
                 {canEvaluate && (
                   <button
                     type="button"
@@ -1695,18 +1934,18 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                       setActiveTab('avaliacao');
                       setIsEditingAvaliacao(true);
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer ${
+                    className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer ${
                       isPendente4Meses
                         ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
                         : 'bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
                     }`}
                     title="Registrar Avaliação de 4 Meses do Assistido"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">
                       {existingAvaliacao
-                        ? 'Atualizar Avaliação 4 Meses'
-                        : 'Registrar Avaliação de 4 Meses'}
+                        ? 'Atualizar Avaliação 4M'
+                        : 'Avaliação 4 Meses'}
                     </span>
                   </button>
                 )}
@@ -1715,63 +1954,54 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                     title="Editar informações completas nas 5 Abas"
                   >
-                    <Edit3 className="w-3.5 h-3.5" />
+                    <Edit3 className="w-3.5 h-3.5 shrink-0" />
                     <span>Editar Ficha (5 Abas)</span>
                   </button>
                 ) : (
                   <span
-                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
                     title="Perfil Recepção tem permissão apenas para cadastro inicial e consulta"
                   >
                     <Lock className="w-3.5 h-3.5 text-slate-400" />
                     Consulta (Recepção)
                   </span>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  title="Imprimir Ficha Completa A4"
+                  className="hidden sm:inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-xl transition border border-slate-300 dark:border-slate-700 shadow-2xs cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+                  <span>Imprimir Ficha</span>
+                </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={savingEdit}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Modo Leitura</span>
+                  <span>Modo Leitura</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveFullEdit}
                   disabled={savingEdit}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-1.5 sm:py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{savingEdit ? 'Salvando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
             )}
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              title="Imprimir Ficha Completa A4"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-lg transition border border-slate-300 dark:border-slate-700 shadow-2xs cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
-              <span>Imprimir Ficha</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              title="Fechar Janela"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
@@ -1792,7 +2022,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         {/* BARRA DE NAVEGAÇÃO DE ABAS */}
         {!isEditingData ? (
           /* Abas do Modo de Visualização / Leitura */
-          <div className="px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-2.5">
+          <div className="px-3 sm:px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 overflow-x-auto whitespace-nowrap scrollbar-none flex items-center gap-1.5 py-1.5 sm:py-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('geral')}
@@ -1874,7 +2104,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           </div>
         ) : (
           /* Abas do Modo de Edição Completa (5 Abas Oficiais) */
-          <div className="px-6 border-b border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/30 flex items-center justify-between gap-2 overflow-x-auto py-2">
+          <div className="px-3 sm:px-6 border-b border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/30 overflow-x-auto whitespace-nowrap scrollbar-none flex items-center justify-between gap-2 py-1.5 sm:py-2 flex-shrink-0">
             <div className="flex items-center gap-1 sm:gap-2">
               {editTabsList.map((tab) => {
                 const Icon = tab.icon;
@@ -1903,8 +2133,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           </div>
         )}
 
-        {/* ÁREA DE CONTEÚDO PRINCIPAL (COM SCROLL) */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-sm text-gray-800 dark:text-slate-200 bg-gray-50/30 dark:bg-slate-900">
+        {/* ÁREA DE CONTEÚDO PRINCIPAL (COM SCROLL E EXPANSÃO TOTAL NO MOBILE) */}
+        <div className="p-3.5 sm:p-6 overflow-y-auto space-y-6 flex-1 min-h-0 text-sm text-gray-800 dark:text-slate-200 bg-gray-50/30 dark:bg-slate-900">
           
           {/* ================================================================= */}
           {/* MODO DE EDIÇÃO: AS 5 ABAS FORMULÁRIO COMPLETO */}
@@ -1964,7 +2194,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-900 flex items-center gap-2">
                     <HeartPulse className="w-4 h-4 text-rose-600" />
                     <span>
-                      Aba 4 (Seção 11): Atualize dificuldades, saúde familiar (parentesco e remédios), rede de apoio e serviços da FLH.
+                      Aba 4: Atualize dificuldades, saúde familiar (parentesco, condições e remédios), rede de apoio e serviços da FLH.
                     </span>
                   </div>
                   <TabVulnerabilidades
@@ -1979,7 +2209,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-xs font-semibold text-purple-900 flex items-center gap-2">
                     <GraduationCap className="w-4 h-4 text-purple-600" />
                     <span>
-                      Aba 5 (Seção 12): Atualize oficinas pretendidas, objetivos nos próximos 3 meses, percepção da FLH e outras oficinas.
+                      Aba 5: Atualize oficinas pretendidas, objetivos nos próximos 3 meses, percepção da FLH e outras oficinas.
                     </span>
                   </div>
                   <TabMotivacoes
@@ -2526,11 +2756,80 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
               {/* ABA 3: SAÚDE & VULNERABILIDADES */}
               {activeTab === 'saude' && (
                 <div className="space-y-6 animate-fadeIn">
-                  {/* Seção 11: Tabela de Condições de Saúde Familiar */}
+                  {/* Lista Detalhada de Condições Cadastradas */}
+                  {(() => {
+                    const condicoes = parseCondicoesSaudeParaImpressao(assistido.doencas_cronicas_familia);
+                    return (
+                      <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                          <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                            <HeartPulse className="w-4 h-4 text-rose-600" />
+                            Condições de Saúde Registradas na Família
+                          </h4>
+                          <span className="text-[11px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                            {condicoes.length} registrada(s)
+                          </span>
+                        </div>
+
+                        {condicoes.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {condicoes.map((cond, idx) => (
+                              <div
+                                key={cond.id || idx}
+                                className="p-4 rounded-xl border border-rose-100 bg-rose-50/30 space-y-2.5 text-xs"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <span className="font-bold text-gray-950 text-sm block">
+                                      {cond.nomeDoenca}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-rose-700 block mt-0.5">
+                                      {cond.categoria}
+                                    </span>
+                                  </div>
+                                  <span className="px-2 py-1 rounded bg-indigo-50 text-indigo-900 border border-indigo-200 font-bold text-[10px] shrink-0">
+                                    {cond.quemPossui}
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1 text-slate-700 bg-white/80 p-2.5 rounded-lg border border-rose-100/60">
+                                  <div>
+                                    <span className="font-semibold text-slate-500 text-[11px] block">
+                                      Medicamento / Como Adquire / Tratamento:
+                                    </span>
+                                    <span className="font-medium text-slate-900">
+                                      {cond.medicamento}
+                                    </span>
+                                  </div>
+
+                                  {cond.observacoes && cond.observacoes !== 'Sem observações adicionais' && (
+                                    <div className="pt-1 border-t border-slate-100 mt-1">
+                                      <span className="font-semibold text-slate-500 text-[11px] block">
+                                        Observações / Detalhes:
+                                      </span>
+                                      <span className="italic text-slate-800">
+                                        {cond.observacoes}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-center text-xs text-gray-500">
+                            Nenhuma condição de saúde ou patologia crônica cadastrada para o assistido ou seus familiares.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Resumo por Categoria */}
                   <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-4">
                     <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 pb-2.5">
-                      <HeartPulse className="w-4 h-4 text-red-600" />
-                      Saúde Familiar (Seção 11: Condições, Parentesco e Medicamento/Tratamento)
+                      <HeartPulse className="w-4 h-4 text-emerald-600" />
+                      Visão Geral por Categoria de Saúde
                     </h4>
 
                     <div className="space-y-3">
@@ -2539,7 +2838,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                           key={row.id}
                           className={`p-3.5 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
                             row.registrada
-                              ? 'bg-red-50/60 border-red-200'
+                              ? 'bg-rose-50/60 border-rose-200'
                               : 'bg-gray-50 border-gray-200'
                           }`}
                         >
@@ -2549,7 +2848,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                                 {row.titulo}
                               </span>
                               {row.registrada ? (
-                                <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded font-bold text-[10px]">
+                                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-[10px]">
                                   Registrado
                                 </span>
                               ) : (
@@ -2639,7 +2938,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-4 animate-fadeIn">
                   <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 pb-2.5">
                     <GraduationCap className="w-4 h-4 text-purple-600" />
-                    Oficinas, Motivações e Percepção da Fundação Lar Harmonia (Seção 12)
+                    Motivações e Percepção da FLH (Oficinas e Expectativas)
                   </h4>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -2993,60 +3292,60 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         </div>
 
         {/* RODAPÉ DO MODAL: AUDITORIA AMIGÁVEL DO OPERADOR E AÇÕES (Requisito 3) */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-500">
+        <div className="px-4 sm:px-6 py-4 bg-gray-50 dark:bg-slate-800/90 border-t border-gray-200 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 w-full text-xs text-gray-500 dark:text-slate-400">
           
           {/* Seção Obrigatória de Auditoria e Operador */}
           <div className="space-y-1.5 py-0.5">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700">
-              <span className="font-semibold text-gray-600 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-gray-500" /> Cadastrado por:
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700 dark:text-slate-300">
+              <span className="font-semibold text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" /> Cadastrado por:
               </span>
-              <strong className="text-gray-900 font-bold">
+              <strong className="text-gray-900 dark:text-slate-100 font-bold">
                 {operadorCadastro.nome}
               </strong>
-              <span className="text-gray-600 font-medium">
+              <span className="text-gray-600 dark:text-slate-400 font-medium">
                 ({operadorCadastro.cargo})
               </span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-600">em {formatDateTime(assistido.created_at)}</span>
+              <span className="text-gray-400 dark:text-slate-500">•</span>
+              <span className="text-gray-600 dark:text-slate-400">em {formatDateTime(assistido.created_at)}</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700">
-              <span className="font-semibold text-gray-600 flex items-center gap-1.5">
-                <Edit3 className="w-3.5 h-3.5 text-gray-500" /> Última alteração por:
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-700 dark:text-slate-300">
+              <span className="font-semibold text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
+                <Edit3 className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" /> Última alteração por:
               </span>
-              <strong className="text-gray-900 font-bold">
+              <strong className="text-gray-900 dark:text-slate-100 font-bold">
                 {operadorAtualizacao.nome}
               </strong>
-              <span className="text-gray-600 font-medium">
+              <span className="text-gray-600 dark:text-slate-400 font-medium">
                 ({operadorAtualizacao.cargo})
               </span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-600">em {formatDateTime(assistido.updated_at || assistido.created_at)}</span>
+              <span className="text-gray-400 dark:text-slate-500">•</span>
+              <span className="text-gray-600 dark:text-slate-400">em {formatDateTime(assistido.updated_at || assistido.created_at)}</span>
             </div>
           </div>
 
-          {/* Botões de Ação no Rodapé */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Botões de Ação no Rodapé (Compactos e em linha no mobile) */}
+          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
             {canUserDelete && !isEditingData && (
               <button
                 type="button"
                 onClick={handleDeleteAction}
                 disabled={deletingFicha}
-                className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-800 font-bold hover:bg-red-50 px-3 py-2 rounded-xl transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold hover:bg-red-50 dark:hover:bg-red-950/40 px-3 py-2 rounded-xl transition cursor-pointer disabled:opacity-50 border border-red-200 dark:border-red-900/40"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {deletingFicha ? 'Excluindo...' : 'Excluir'}
+                <span>{deletingFicha ? 'Excluindo...' : 'Excluir'}</span>
               </button>
             )}
 
             {isEditingData ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto ml-auto">
                 <button
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={savingEdit}
-                  className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-semibold rounded-xl transition"
+                  className="flex-1 sm:flex-initial px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition text-center cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3054,29 +3353,30 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   type="button"
                   onClick={handleSaveFullEdit}
                   disabled={savingEdit}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5"
+                  className="flex-1 sm:flex-initial px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                  <span>{savingEdit ? 'Salvando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 ml-auto">
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer"
                   title="Imprimir Ficha Completa A4"
                 >
-                  <Printer className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Imprimir Ficha</span>
+                  <Printer className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden sm:inline">Imprimir Ficha</span>
+                  <span className="sm:hidden">Imprimir</span>
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+                  className="px-4 sm:px-5 py-2 bg-gray-900 hover:bg-black dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl transition shadow-xs cursor-pointer text-center"
                 >
-                  Fechar Ficha
+                  Fechar
                 </button>
               </div>
             )}
@@ -3306,33 +3606,69 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
 
       {/* 4. Saúde & Vulnerabilidades (Aba 4) */}
       <div className="print-section mb-3.5">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider bg-gray-100 px-2 py-1 border-l-4 border-emerald-600 mb-1.5">
-          4. Saúde & Vulnerabilidades
+        <h3 className="text-[11px] font-bold uppercase tracking-wider bg-gray-100 px-2 py-1 border-l-4 border-rose-600 mb-1.5 flex items-center justify-between">
+          <span>4. Vulnerabilidades e Saúde Familiar</span>
+          {(() => {
+            const conds = parseCondicoesSaudeParaImpressao(assistido.doencas_cronicas_familia);
+            return (
+              <span className="text-[10px] font-semibold text-gray-600">
+                {conds.length > 0 ? `${conds.length} condição(ões) cadastrada(s)` : 'Sem patologias cadastradas'}
+              </span>
+            );
+          })()}
         </h3>
-        <div className="grid grid-cols-2 gap-2 border border-gray-200 p-2.5 rounded text-[11px]">
-          <div>
-            <span className="text-gray-500 block">Doenças Crônicas na Família:</span>
-            <span>
-              {Array.isArray(assistido.doencas_cronicas_familia) && assistido.doencas_cronicas_familia.length > 0
-                ? assistido.doencas_cronicas_familia.join(', ')
-                : typeof assistido.doencas_cronicas_familia === 'string'
-                ? assistido.doencas_cronicas_familia
-                : 'Nenhuma registrada'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-500 block">Possui Deficiência / Síndrome:</span>
-            <span>
-              {assistido.possui_deficiencia
-                ? Array.isArray(assistido.tipos_deficiencia) && assistido.tipos_deficiencia.length > 0
-                  ? `Sim (${assistido.tipos_deficiencia.join(', ')})`
-                  : 'Sim'
-                : 'Não'}
-            </span>
-          </div>
+
+        {/* Tabela Formatada de Condições de Saúde para Impressão */}
+        {(() => {
+          const condicoes = parseCondicoesSaudeParaImpressao(assistido.doencas_cronicas_familia);
+          if (condicoes.length > 0) {
+            return (
+              <div className="border border-gray-300 rounded overflow-hidden mb-2">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-800 border-b border-gray-300 font-bold">
+                      <th className="py-1.5 px-2.5 w-1/4">Categoria & Diagnóstico</th>
+                      <th className="py-1.5 px-2.5 w-1/5">Quem Possui</th>
+                      <th className="py-1.5 px-2.5 w-1/4">Medicamento / Tratamento</th>
+                      <th className="py-1.5 px-2.5">Observações & Detalhes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {condicoes.map((cond, i) => (
+                      <tr key={cond.id || i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                        <td className="py-1.5 px-2.5 align-top">
+                          <span className="font-bold text-gray-950 block">{cond.nomeDoenca}</span>
+                          <span className="text-[10px] text-rose-700 font-medium">{cond.categoria}</span>
+                        </td>
+                        <td className="py-1.5 px-2.5 align-top">
+                          <span className="font-semibold text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-[10px] inline-block">
+                            {cond.quemPossui}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2.5 align-top text-gray-800">
+                          {cond.medicamento}
+                        </td>
+                        <td className="py-1.5 px-2.5 align-top text-gray-700">
+                          {cond.observacoes}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+          return (
+            <div className="p-2 border border-gray-200 rounded text-[11px] text-gray-600 bg-gray-50 mb-2">
+              Nenhuma condição crônica, dependência, sofrimento mental ou deficiência declarada.
+            </div>
+          );
+        })()}
+
+        <div className="grid grid-cols-2 gap-2 border border-gray-200 p-2.5 rounded text-[11px] bg-gray-50/30">
           <div>
             <span className="text-gray-500 block">Dificuldades Enfrentadas:</span>
-            <span>
+            <span className="font-medium text-gray-900">
               {Array.isArray(assistido.dificuldades_enfrentadas) && assistido.dificuldades_enfrentadas.length > 0
                 ? assistido.dificuldades_enfrentadas.join(', ')
                 : 'Nenhuma informada'}
@@ -3340,7 +3676,7 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           </div>
           <div>
             <span className="text-gray-500 block">Fatores de Risco de Evasão:</span>
-            <span>
+            <span className="font-medium text-gray-900">
               {Array.isArray(assistido.fatores_risco_evasao) && assistido.fatores_risco_evasao.length > 0
                 ? assistido.fatores_risco_evasao.join(', ')
                 : 'Nenhum identificado'}
@@ -3458,65 +3794,113 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
           </div>
         </div>
       </div>
-      {/* Mini-Modal de Confirmação Estilizado */}
-      {showDirectConfirmModal && (
-        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 className="w-6 h-6" />
-            </div>
+    </div>
 
-            <div className="text-center space-y-1.5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 font-heading">
-                Confirmar Exclusão de Ficha
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Esta ação é irreversível e excluirá permanentemente o cadastro de:
+    {/* Mini-Modal de Confirmação Estilizado (Fora da área de impressão para não ficar oculto) */}
+    {showDirectConfirmModal && (
+      <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+            <Trash2 className="w-6 h-6" />
+          </div>
+
+          <div className="text-center space-y-1.5">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 font-heading">
+              Confirmar Exclusão de Ficha
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Esta ação é irreversível e excluirá permanentemente o cadastro de:
+            </p>
+            <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-100 dark:border-rose-900/50">
+              <p className="text-sm font-bold text-rose-700 dark:text-rose-300">
+                {assistido.nome_completo}
               </p>
-              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-100 dark:border-rose-900/50">
-                <p className="text-sm font-bold text-rose-700 dark:text-rose-300">
-                  {assistido.nome_completo}
+              {assistido.cpf && (
+                <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 font-mono mt-0.5">
+                  CPF: {formatCPF(assistido.cpf)}
                 </p>
-                {assistido.cpf && (
-                  <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 font-mono mt-0.5">
-                    CPF: {formatCPF(assistido.cpf)}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowDirectConfirmModal(false)}
-                disabled={deletingFicha}
-                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteDirectDelete}
-                disabled={deletingFicha}
-                className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                {deletingFicha ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Sim, Excluir
-                  </>
-                )}
-              </button>
+              )}
             </div>
           </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowDirectConfirmModal(false)}
+              disabled={deletingFicha}
+              className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleExecuteDirectDelete}
+              disabled={deletingFicha}
+              className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              {deletingFicha ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Sim, Excluir
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+
+    {/* Modal Lightbox de Foto Ampliada (Visível e com z-index máximo) */}
+    {fotoZoomUrl && (
+      <div
+        className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 cursor-zoom-out"
+        onClick={() => setFotoZoomUrl(null)}
+      >
+        <div
+          className="relative max-w-3xl w-full flex flex-col items-center cursor-default animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-full flex items-center justify-between pb-3 text-white">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-emerald-400" />
+              <span className="font-bold text-sm sm:text-base tracking-tight text-white drop-shadow truncate">
+                {assistido.nome_completo}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFotoZoomUrl(null)}
+              className="text-white/80 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20 transition cursor-pointer"
+              title="Fechar ampliação (Esc)"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="relative rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black max-h-[78vh] flex items-center justify-center">
+            <img
+              src={fotoZoomUrl}
+              alt={`Foto ampliada de ${assistido.nome_completo}`}
+              className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl"
+            />
+          </div>
+
+          <div className="mt-3 text-center">
+            <p className="text-white/90 font-medium text-xs sm:text-sm">
+              {assistido.curso_pretendido || 'Oficina Geral'} • CPF: {assistido.cpf || 'Não informado'}
+            </p>
+            <p className="text-white/50 text-[11px] mt-1">
+              Clique fora da imagem ou no <kbd className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] text-white">X</kbd> para fechar
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
   </>
   );
 };

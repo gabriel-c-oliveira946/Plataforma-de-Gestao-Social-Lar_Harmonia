@@ -72,7 +72,37 @@ export default function Login() {
         targetEmail = resolved;
       }
 
-      // Verificação prévia de conta desativada (se já constar na lista de inativos)
+      // Verificação prévia na tabela 'profiles' do Supabase buscando pelo e-mail antes do login
+      try {
+        const { data: preProfile } = await supabase
+          .from('profiles')
+          .select('id, email, status, ativo, cargo, mensagem_desativacao')
+          .ilike('email', targetEmail)
+          .maybeSingle();
+
+        if (
+          preProfile &&
+          (preProfile.status === 'inativo' ||
+            preProfile.ativo === false ||
+            preProfile.cargo === 'Inativo')
+        ) {
+          await supabase.auth.signOut();
+          setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
+          const customMsg =
+            preProfile.mensagem_desativacao ||
+            getMensagemDesativacao(targetEmail) ||
+            getMensagemDesativacao(cleanInput);
+          if (customMsg && customMsg.trim()) {
+            setDetalhesMensagem(customMsg.trim());
+          }
+          setLoading(false);
+          return;
+        }
+      } catch (preErr) {
+        console.warn('Verificação prévia de profiles em Login:', preErr);
+      }
+
+      // Verificação prévia de conta desativada (se constar na lista persistente)
       if (isUsuarioInativo(targetEmail) || isUsuarioInativo(cleanInput)) {
         const msg =
           getMensagemDesativacao(targetEmail) ||
@@ -109,7 +139,34 @@ export default function Login() {
       }
 
       if (signInError) {
-        // Antes de retornar erro genérico de credenciais, checar se a conta está inativa
+        // Antes de retornar erro genérico de credenciais, checar se a conta está desativada no Supabase
+        try {
+          const { data: checkProf } = await supabase
+            .from('profiles')
+            .select('id, email, status, ativo, cargo, mensagem_desativacao')
+            .ilike('email', targetEmail)
+            .maybeSingle();
+
+          if (
+            checkProf &&
+            (checkProf.status === 'inativo' ||
+              checkProf.ativo === false ||
+              checkProf.cargo === 'Inativo')
+          ) {
+            await supabase.auth.signOut();
+            setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
+            const msg =
+              checkProf.mensagem_desativacao ||
+              getMensagemDesativacao(targetEmail) ||
+              getMensagemDesativacao(cleanInput);
+            if (msg && msg.trim()) {
+              setDetalhesMensagem(msg.trim());
+            }
+            setLoading(false);
+            return;
+          }
+        } catch {}
+
         if (isUsuarioInativo(targetEmail) || isUsuarioInativo(cleanInput)) {
           const msg =
             getMensagemDesativacao(targetEmail) ||
@@ -118,6 +175,7 @@ export default function Login() {
           if (msg && msg.trim()) {
             setDetalhesMensagem(msg.trim());
           }
+          setLoading(false);
           return;
         }
 
@@ -131,20 +189,64 @@ export default function Login() {
             'Não foi possível autenticar no sistema. Verifique suas credenciais e tente novamente.'
           );
         }
+        setLoading(false);
         return;
       }
 
-      // 3. Verificação de Segurança: Bloqueio de login para contas desativadas (status === 'inativo')
+      // 3. LEITURA OBRIGATÓRIA NO LOGIN:
+      // Consulta a tabela 'profiles' no Supabase buscando pelo e-mail ou ID do usuário
       const { data: authData } = await supabase.auth.getUser();
       const authenticatedUser = authData?.user;
 
-      if (
-        (authenticatedUser && isUsuarioInativo(authenticatedUser)) ||
+      if (!authenticatedUser) {
+        setError('Não foi possível carregar a sessão autenticada.');
+        setLoading(false);
+        return;
+      }
+
+      let profileData: any = null;
+      try {
+        // Busca direta pelo ID na tabela 'profiles'
+        const { data: byId, error: errById } = await supabase
+          .from('profiles')
+          .select('id, email, status, ativo, cargo, role, nome, mensagem_desativacao')
+          .eq('id', authenticatedUser.id)
+          .maybeSingle();
+
+        if (!errById && byId) {
+          profileData = byId;
+        } else if (authenticatedUser.email) {
+          // Busca secundária por e-mail na tabela 'profiles'
+          const { data: byEmail } = await supabase
+            .from('profiles')
+            .select('id, email, status, ativo, cargo, role, nome, mensagem_desativacao')
+            .ilike('email', authenticatedUser.email)
+            .maybeSingle();
+          profileData = byEmail;
+        }
+      } catch (queryErr) {
+        console.warn('Erro ao consultar tabela profiles no login:', queryErr);
+      }
+
+      // Se o perfil no Supabase retornar status === 'inativo' ou ativo === false
+      const isAccountInactive =
+        profileData?.status === 'inativo' ||
+        profileData?.ativo === false ||
+        profileData?.cargo === 'Inativo' ||
+        isUsuarioInativo(authenticatedUser) ||
         isUsuarioInativo(targetEmail) ||
-        isUsuarioInativo(cleanInput)
-      ) {
+        isUsuarioInativo(cleanInput);
+
+      if (isAccountInactive) {
+        // a) Realize o logout imediato:
         await supabase.auth.signOut();
-        const msg =
+
+        // b) Exiba a mensagem genérica em destaque vermelho na tela de Login:
+        setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
+
+        // c) Se houver uma mensagem_desativacao cadastrada na tabela 'profiles', exiba essa mensagem personalizada:
+        const customMsg =
+          profileData?.mensagem_desativacao ||
           (authenticatedUser ? getMensagemDesativacao(authenticatedUser.id) : null) ||
           (authenticatedUser ? getMensagemDesativacao(authenticatedUser.email) : null) ||
           getMensagemDesativacao(targetEmail) ||
@@ -152,28 +254,28 @@ export default function Login() {
           (authenticatedUser?.user_metadata?.mensagem_desativacao as string | undefined) ||
           null;
 
-        setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
-        if (msg && msg.trim()) {
-          setDetalhesMensagem(msg.trim());
+        if (customMsg && customMsg.trim()) {
+          setDetalhesMensagem(customMsg.trim());
         }
+
+        // d) Não limpe os avisos da tela nem ignore a mensagem.
+        setLoading(false);
         return;
       }
 
       // 4. Registro do operador ativo para acelerar consultas futuras por username
-      if (authenticatedUser) {
-        try {
-          saveMembroLocal({
-            id: authenticatedUser.id,
-            email: authenticatedUser.email,
-            nome: getUserDisplayName(authenticatedUser),
-            role: parseUserRole(authenticatedUser),
-            cargo: getRoleCargo(parseUserRole(authenticatedUser)),
-            status: 'ativo',
-            ativo: true
-          });
-        } catch {
-          // Ignora falhas de cache local
-        }
+      try {
+        saveMembroLocal({
+          id: authenticatedUser.id,
+          email: authenticatedUser.email,
+          nome: profileData?.nome || getUserDisplayName(authenticatedUser),
+          role: profileData?.role || parseUserRole(authenticatedUser),
+          cargo: profileData?.cargo || getRoleCargo(parseUserRole(authenticatedUser)),
+          status: 'ativo',
+          ativo: true
+        });
+      } catch {
+        // Ignora falhas de cache local
       }
 
       navigate('/dashboard');
@@ -303,34 +405,38 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Mensagem de Erro / Alerta com Botão de Ver Detalhes se houver recado da administração */}
+          {/* Mensagem de Erro / Alerta em Destaque Vermelho com Recado Personalizado no Card */}
           {error && (
-            <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg space-y-2.5 animate-in fade-in">
+            <div className="p-4 bg-red-50 dark:bg-red-950/50 border-2 border-red-300 dark:border-red-800 rounded-xl space-y-3 animate-in fade-in shadow-xs">
               <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-red-800 dark:text-red-300 leading-relaxed">
+                  <p className="text-xs sm:text-sm font-bold text-red-900 dark:text-red-200 leading-snug">
                     {error}
                   </p>
                 </div>
               </div>
 
-              {/* Botão de Ver Detalhes se a Administração deixou mensagem */}
+              {/* Card de Mensagem Personalizada de Desativação */}
               {detalhesMensagem && (
-                <div className="pt-2 border-t border-red-200/80 dark:border-red-900/80 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-red-700 dark:text-red-400 font-medium flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" />
-                    <span>Recado da diretoria disponível</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowDetalhesModal(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-md shadow-2xs transition cursor-pointer shrink-0"
-                    title="Ver detalhes da mensagem da administração"
-                  >
-                    <FileText className="w-3 h-3" />
-                    <span>Ver Detalhes</span>
-                  </button>
+                <div className="p-3 bg-white dark:bg-slate-900/90 border border-red-200 dark:border-red-800 rounded-lg space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" />
+                      <span>Mensagem da Administração / Diretoria:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowDetalhesModal(true)}
+                      className="text-[10px] text-red-600 dark:text-red-400 hover:underline font-bold cursor-pointer"
+                      title="Ver comunicado completo"
+                    >
+                      Expandir
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-wrap pl-0.5">
+                    "{detalhesMensagem}"
+                  </p>
                 </div>
               )}
             </div>

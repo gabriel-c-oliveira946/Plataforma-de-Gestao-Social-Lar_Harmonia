@@ -4,9 +4,8 @@ import {
   DollarSign,
   Gift,
   CheckCircle,
-  HelpCircle,
   Clock,
-  Calendar
+  Award
 } from 'lucide-react';
 import {
   CadastroFormData,
@@ -81,6 +80,8 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
   };
 
   const isTrabalhando = formData.atividade_remunerada === 'Sim';
+  const isAposentado = formData.atividade_remunerada === 'Aposentado(a) / Pensionista';
+  const isDesempregado = formData.atividade_remunerada === 'Não';
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -94,15 +95,15 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
         {/* Pergunta: Realiza atividade remunerada atual? */}
         <div className="p-4 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-xl space-y-3">
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-            Realiza Atividade Remunerada Atual? <span className="text-red-500">*</span>
+            Situação Profissional / Atividade Remunerada Atual <span className="text-red-500">*</span>
           </label>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4">
             <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer">
               <input
                 type="radio"
                 name="atividade_remunerada"
                 value="Sim"
-                checked={formData.atividade_remunerada === 'Sim'}
+                checked={isTrabalhando}
                 onChange={() =>
                   setFormData({
                     ...formData,
@@ -114,12 +115,13 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
               />
               Sim, realiza atividade remunerada
             </label>
+
             <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer">
               <input
                 type="radio"
                 name="atividade_remunerada"
                 value="Não"
-                checked={formData.atividade_remunerada === 'Não'}
+                checked={isDesempregado}
                 onChange={() =>
                   setFormData({
                     ...formData,
@@ -133,11 +135,30 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
               />
               Não realiza atividade remunerada (Sem renda/desempregado)
             </label>
+
+            <label className="inline-flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200 font-semibold cursor-pointer">
+              <input
+                type="radio"
+                name="atividade_remunerada"
+                value="Aposentado(a) / Pensionista"
+                checked={isAposentado}
+                onChange={() =>
+                  setFormData({
+                    ...formData,
+                    atividade_remunerada: 'Aposentado(a) / Pensionista',
+                    ocupacao_atual: formData.ocupacao_atual || 'Aposentado(a) / Pensionista',
+                    desemprego_circunstancia: ''
+                  })
+                }
+                className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+              />
+              Aposentado(a) / Pensionista
+            </label>
           </div>
         </div>
 
-        {/* Campos se SIM (Habilitados) ou NÃO (Desabilitados/Ocultos) */}
-        {isTrabalhando ? (
+        {/* Campos se SIM (Trabalhando) */}
+        {isTrabalhando && (
           <div className="p-4 sm:p-5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl space-y-5 animate-fadeIn">
             <h4 className="font-heading text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -209,14 +230,51 @@ export const TabTrabalhoRenda: React.FC<TabTrabalhoRendaProps> = ({
               </div>
             </div>
           </div>
-        ) : (
-          <div className="p-4 bg-slate-50 dark:bg-slate-700/40 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs text-slate-500 dark:text-slate-400 italic">
-            Ocupação, turno e dias de trabalho ficam desabilitados quando não há atividade remunerada ativa.
+        )}
+
+        {/* Campos se APOSENTADO(A) / PENSIONISTA */}
+        {isAposentado && (
+          <div className="p-4 sm:p-5 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-4 animate-fadeIn">
+            <h4 className="font-heading text-xs font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider flex items-center gap-2">
+              <Award className="w-4 h-4 text-purple-700 dark:text-purple-400" />
+              Detalhes da Aposentadoria / Pensão
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="md:col-span-8">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Tipo de Aposentadoria / Pensão / Benefício:
+                </label>
+                <input
+                  type="text"
+                  value={formData.ocupacao_atual || 'Aposentado(a) / Pensionista'}
+                  onChange={(e) => setFormData({ ...formData, ocupacao_atual: e.target.value })}
+                  placeholder="Ex: Aposentadoria por Idade, Pensão por Morte, BPC/LOAS..."
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-purple-600 outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-4">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Atividade informal complementar?
+                </label>
+                <select
+                  value={formData.turno_trabalho || 'Sem atividade extra'}
+                  onChange={(e) => setFormData({ ...formData, turno_trabalho: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-purple-600 outline-none"
+                >
+                  <option value="Sem atividade extra">Sem atividade complementar</option>
+                  <option value="Manhã">Bicos / Manhã</option>
+                  <option value="Tarde">Bicos / Tarde</option>
+                  <option value="Integral">Bicos / Integral</option>
+                </select>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Causa do Desemprego / Sem Renda (Exibição Condicional: apenas se não realiza atividade remunerada) */}
-        {!isTrabalhando && (
+        {isDesempregado && (
           <div className="space-y-1.5 animate-fadeIn">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
               Causa do Desemprego / Sem Renda (Ao que atribui a circunstância e o que está fazendo a respeito?):

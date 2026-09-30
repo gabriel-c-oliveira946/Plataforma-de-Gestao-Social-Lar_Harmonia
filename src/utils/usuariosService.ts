@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase/client';
 import { UserRole, mapCargoToEnumRole, mapRoleToCargoFormatado } from '../types/auth';
-import { atualizarCargoMembro, getEquipeList, saveMembroLocal, desativarMembroEquipe } from './equipe';
+import {
+  atualizarCargoMembro,
+  getEquipeList,
+  saveMembroLocal,
+  desativarMembroEquipe as desativarMembroEquipeLocal,
+  saveInativo,
+  saveMensagemDesativacao
+} from './equipe';
 import { notify } from '../context/ToastContext';
 
 export interface UpdateCargoParams {
@@ -36,8 +43,97 @@ export function formatarNomeCargo(cargoOuRole?: string | null): string {
 }
 
 /**
- * Desativa o acesso de um membro da equipe no Supabase e armazenamento local:
- * - .update({ status: 'inativo', cargo: 'Inativo' }).eq('id', membroId)
+ * Desativa o acesso de um membro da equipe gravando diretamente no Supabase na tabela 'profiles':
+ * .update({ status: 'inativo', ativo: false, mensagem_desativacao: mensagemDigitada })
+ * .eq('id', membroId)
+ */
+export async function desativarMembroEquipe(
+  membroId: string,
+  email?: string,
+  mensagem?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const mensagemDigitada = mensagem?.trim() || null;
+
+    // 1. Gravação obrigatória e direta no Supabase na tabela 'profiles'
+    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+    if (hasUrl && membroId) {
+      let { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          status: 'inativo',
+          ativo: false,
+          cargo: 'Inativo',
+          mensagem_desativacao: mensagemDigitada
+        })
+        .eq('id', membroId);
+
+      // Tratamento de resiliência caso alguma coluna opcional ainda não exista no schema remoto
+      if (profileError && (profileError.message?.includes('mensagem_desativacao') || profileError.message?.includes('column'))) {
+        console.warn('Tentando fallback sem mensagem_desativacao em profiles:', profileError.message);
+        const retry1 = await supabase
+          .from('profiles')
+          .update({
+            status: 'inativo',
+            ativo: false,
+            cargo: 'Inativo'
+          })
+          .eq('id', membroId);
+        profileError = retry1.error;
+      }
+
+      if (profileError && profileError.message?.includes('ativo')) {
+        const retry2 = await supabase
+          .from('profiles')
+          .update({
+            status: 'inativo',
+            cargo: 'Inativo'
+          })
+          .eq('id', membroId);
+        profileError = retry2.error;
+      }
+
+      if (profileError && profileError.message?.includes('status')) {
+        const retry3 = await supabase
+          .from('profiles')
+          .update({
+            cargo: 'Inativo'
+          })
+          .eq('id', membroId);
+        profileError = retry3.error;
+      }
+
+      if (profileError) {
+        console.error('Erro ao gravar desativação em profiles no Supabase:', profileError);
+        return { success: false, error: profileError.message };
+      }
+    }
+
+    // 2. Sincroniza também no armazenamento local e nos helpers da aplicação
+    if (membroId) saveInativo(membroId);
+    if (email) saveInativo(email);
+    if (mensagemDigitada) {
+      if (membroId) saveMensagemDesativacao(membroId, mensagemDigitada);
+      if (email) saveMensagemDesativacao(email, mensagemDigitada);
+    }
+
+    await desativarMembroEquipeLocal(membroId, email, mensagemDigitada || undefined);
+
+    return { success: true };
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Erro inesperado ao desativar membro da equipe.';
+    console.error('Erro em desativarMembroEquipe:', err);
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Alias de compatibilidade para removerMembroEquipe
+ */
+export const removerMembroEquipe = desativarMembroEquipe;
+
+/**
+ * Desativa o acesso de um membro da equipe com suporte a notificações na UI
  */
 export async function desativarUsuario({
   membroId,
@@ -45,46 +141,11 @@ export async function desativarUsuario({
   mensagem,
   showAlert = true
 }: DesativarUsuarioParams): Promise<{ success: boolean; error?: string }> {
-  try {
-    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
-    if (hasUrl) {
-      let { error } = await supabase
-        .from('profiles')
-        .update({
-          status: 'inativo',
-          cargo: 'Inativo'
-        })
-        .eq('id', membroId);
-
-      if (error && error.message?.includes('status')) {
-        const retry = await supabase
-          .from('profiles')
-          .update({
-            cargo: 'Inativo'
-          })
-          .eq('id', membroId);
-        error = retry.error;
-      }
-
-      if (error) {
-        console.error('Erro ao desativar membro no Supabase:', error);
-        if (showAlert) {
-          notify.error('Erro ao desativar acesso', error.message);
-        }
-        return { success: false, error: error.message };
-      }
-    }
-
-    await desativarMembroEquipe(membroId, email, mensagem);
-    return { success: true };
-  } catch (err: any) {
-    const errorMsg = err?.message || 'Erro inesperado ao desativar acesso.';
-    console.error('Erro em desativarUsuario:', err);
-    if (showAlert) {
-      notify.error('Erro ao desativar acesso', errorMsg);
-    }
-    return { success: false, error: errorMsg };
+  const result = await desativarMembroEquipe(membroId, email, mensagem);
+  if (!result.success && showAlert) {
+    notify.error('Erro ao desativar acesso', result.error);
   }
+  return result;
 }
 
 /**
@@ -140,6 +201,8 @@ export async function atualizarCargoUsuario({
 export const usuariosService = {
   atualizarCargo: atualizarCargoUsuario,
   desativarUsuario,
+  desativarMembroEquipe,
+  removerMembroEquipe,
   mapearCargoParaEnum,
   formatarNomeCargo,
   getEquipeList,
