@@ -446,6 +446,10 @@ export default function CadastrarAssistido() {
         expectativasList.push(`Data de Saída: ${formData.data_saida}`);
       }
 
+      if (formData.motivo_evasao?.trim()) {
+        expectativasList.push(`Motivo da Evasão: ${formData.motivo_evasao.trim()}`);
+      }
+
       const expectativaCursoFinal =
         expectativasList.length > 0 ? expectativasList.join(' | ') : null;
 

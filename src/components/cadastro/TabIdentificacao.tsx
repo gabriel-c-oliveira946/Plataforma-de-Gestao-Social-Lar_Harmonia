@@ -525,6 +525,71 @@ export const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({
               Informe quando houver conclusão, evasão ou encerramento do acompanhamento.
             </p>
           </div>
+
+          {/* Campo Condicional: Motivo da Evasão / Desistência */}
+          {formData.status_acompanhamento === 'Desistente / Evasão' && (
+            <div className="md:col-span-12 p-3.5 sm:p-4 bg-amber-50/70 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/80 space-y-2.5 animate-fadeIn">
+              <label className="block text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider">
+                Motivo da Evasão / Desistência <span className="text-[10px] text-amber-700 dark:text-amber-300 font-normal lowercase">(opcional)</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <div className="sm:col-span-5">
+                  <select
+                    value={
+                      [
+                        'Transporte / Distância',
+                        'Horário incompatível / Conseguiu Trabalho',
+                        'Cuidado infantil / Dependentes',
+                        'Saúde fragilizada',
+                        'Mudança de endereço / Território',
+                        'Falta de interesse'
+                      ].includes(formData.motivo_evasao || '')
+                        ? formData.motivo_evasao
+                        : 'Outro'
+                    }
+                    onChange={(e) => {
+                      if (e.target.value !== 'Outro') {
+                        setFormData({ ...formData, motivo_evasao: e.target.value });
+                      } else {
+                        const opcoesPredefinidas = [
+                          'Transporte / Distância',
+                          'Horário incompatível / Conseguiu Trabalho',
+                          'Cuidado infantil / Dependentes',
+                          'Saúde fragilizada',
+                          'Mudança de endereço / Território',
+                          'Falta de interesse'
+                        ];
+                        if (opcoesPredefinidas.includes(formData.motivo_evasao || '')) {
+                          setFormData({ ...formData, motivo_evasao: '' });
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-amber-300 dark:border-amber-700 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="Transporte / Distância">Transporte / Distância</option>
+                    <option value="Horário incompatível / Conseguiu Trabalho">Horário incompatível / Conseguiu Trabalho</option>
+                    <option value="Cuidado infantil / Dependentes">Cuidado infantil / Dependentes</option>
+                    <option value="Saúde fragilizada">Saúde fragilizada</option>
+                    <option value="Mudança de endereço / Território">Mudança de endereço / Território</option>
+                    <option value="Falta de interesse">Falta de interesse</option>
+                    <option value="Outro">Outro motivo especificado...</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-7">
+                  <input
+                    type="text"
+                    placeholder="Especifique ou detalhe o motivo da evasão..."
+                    value={formData.motivo_evasao || ''}
+                    onChange={(e) => setFormData({ ...formData, motivo_evasao: e.target.value })}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-amber-300 dark:border-amber-700 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                O motivo informado ficará salvo e visível na ficha e nos relatórios de acompanhamento social.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

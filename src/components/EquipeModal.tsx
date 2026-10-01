@@ -38,7 +38,8 @@ import {
   atualizarCargoMembro,
   desativarMembroEquipe,
   reativarMembroEquipe,
-  removerMembroEquipe
+  removerMembroEquipe,
+  limparCacheBloqueioLocal
 } from '../utils/equipe';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -532,43 +533,106 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
     setReactivatingId(membro.id);
     setErrorMsg(null);
 
-    try {
-      const chaveEnumRestaurada = mapCargoToEnumRole(membro.role);
-      const restoredCargo = mapRoleToCargoFormatado(membro.role || membro.cargo);
+    const chaveEnumRestaurada = mapCargoToEnumRole(membro.role);
+    const restoredCargo = mapRoleToCargoFormatado(membro.role || membro.cargo);
 
-      // Requisito: Atualização direta na tabela 'profiles' do Supabase com enum válido
+    // c) Atualize imediatamente o estado visual da lista na tela para que o status mude para 'Ativo' (com o selo verde) sem precisar dar F5 na página
+    setEquipe((prev) =>
+      prev.map((item) =>
+        item.id === membro.id ||
+        (membro.email && item.email?.toLowerCase() === membro.email.toLowerCase())
+          ? {
+              ...item,
+              status: 'ativo' as const,
+              ativo: true,
+              role: chaveEnumRestaurada,
+              cargo: restoredCargo,
+              mensagem_desativacao: undefined,
+              data_desativacao: undefined
+            }
+          : item
+      )
+    );
+
+    try {
+      // b) LIMPEZA DO LOCALSTORAGE: Remova obrigatoriamente o e-mail, ID e username do usuário de TODAS as chaves de cache/bloqueio local
+      limparCacheBloqueioLocal(membro.id, membro.email, membro.nome);
+
+      // a) Ao clicar em "Reativar Acesso", execute o UPDATE na tabela profiles no Supabase definindo:
+      // status = 'ativo', ativo = true e mensagem_desativacao = NULL
       let { error: profileError } = await supabase
         .from('profiles')
         .update({
+          status: 'ativo',
+          ativo: true,
+          mensagem_desativacao: null,
           cargo: restoredCargo,
-          role: chaveEnumRestaurada,
-          status: 'ativo'
+          role: chaveEnumRestaurada
         })
         .eq('id', membro.id);
 
+      if (
+        profileError &&
+        (profileError.message?.includes('mensagem_desativacao') ||
+          profileError.message?.includes('column'))
+      ) {
+        const retry1 = await supabase
+          .from('profiles')
+          .update({
+            status: 'ativo',
+            ativo: true,
+            cargo: restoredCargo,
+            role: chaveEnumRestaurada
+          })
+          .eq('id', membro.id);
+        profileError = retry1.error;
+      }
+
+      if (profileError && profileError.message?.includes('ativo')) {
+        const retry2 = await supabase
+          .from('profiles')
+          .update({
+            status: 'ativo',
+            cargo: restoredCargo,
+            role: chaveEnumRestaurada
+          })
+          .eq('id', membro.id);
+        profileError = retry2.error;
+      }
+
       if (profileError && profileError.message?.includes('status')) {
-        const retry = await supabase
+        await supabase
           .from('profiles')
           .update({
             cargo: restoredCargo,
             role: chaveEnumRestaurada
           })
           .eq('id', membro.id);
-        profileError = retry.error;
       }
 
-      if (profileError) {
-        console.warn('Erro ao reativar membro em profiles:', profileError);
+      if (membro.email) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              status: 'ativo',
+              ativo: true,
+              mensagem_desativacao: null,
+              cargo: restoredCargo,
+              role: chaveEnumRestaurada
+            })
+            .ilike('email', membro.email);
+        } catch {}
       }
 
-      const res = await reativarMembroEquipe(membro.id, membro.email);
+      const res = await reativarMembroEquipe(membro.id, membro.email, membro.nome);
       if (!res.success && profileError) {
         setErrorMsg(res.error || 'Não foi possível reativar o acesso do operador.');
         return;
       }
 
       setSuccessMsg(
-        `Acesso de ${membro.nome} reativado com sucesso! Membro movido de volta para a lista de ativos.`
+        `Acesso de ${membro.nome} reativado com sucesso! Membro alterado para Ativo.`
       );
       await loadEquipe();
       setTimeout(() => setSuccessMsg(null), 4500);
@@ -1095,20 +1159,35 @@ export default function EquipeModal({ isOpen, onClose }: EquipeModalProps) {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {/* Selo Visual de Status: Verde Vibrante para Ativo e Vermelho para Inativo */}
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${
                               isInactive
                                 ? 'bg-red-50 dark:bg-red-900/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                                : (badge?.badge || 'bg-sky-100 text-sky-900 border-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:border-sky-500 font-semibold')
+                                : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-2xs'
                             }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isInactive ? 'bg-red-500 dark:bg-red-400' : (badge?.dot || 'bg-sky-600 dark:bg-sky-400')
+                              className={`w-2 h-2 rounded-full ${
+                                isInactive
+                                  ? 'bg-red-500 dark:bg-red-400'
+                                  : 'bg-emerald-500 dark:bg-emerald-400 animate-pulse'
                               }`}
                             />
-                            <span>{isInactive ? 'Inativo' : membro.cargo}</span>
+                            <span>{isInactive ? 'Inativo' : 'Ativo'}</span>
                           </span>
+
+                          {/* Selo do Cargo Formatado */}
+                          {!isInactive && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                                badge?.badge ||
+                                'bg-sky-100 text-sky-900 border-sky-200 dark:bg-sky-900/50 dark:text-sky-200 dark:border-sky-500'
+                              }`}
+                            >
+                              <span>{membro.cargo}</span>
+                            </span>
+                          )}
 
                           {/* Ações de Controle de Equipe Exclusivas do Admin */}
                           {isAdmin && (

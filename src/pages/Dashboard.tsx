@@ -11,7 +11,8 @@ import {
   hasAvaliacao4Meses,
   isStatusAtivo,
   getDiasIngresso,
-  FILTRO_AVALIACAO_4_MESES
+  FILTRO_AVALIACAO_4_MESES,
+  getAssistidoMotivoEvasao
 } from '../utils/avaliacao4Meses';
 export { isPendenteAvaliacao4Meses, hasAvaliacao4Meses };
 import {
@@ -199,10 +200,10 @@ export default function Dashboard() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Estados de busca e filtros (painel expandido por padrão conforme solicitado)
+  // Estados de busca e filtros (painel recolhido por padrão)
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterLocalidade, setFilterLocalidade] = useState<string>('');
-  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   // Filtros detalhados do formulário
   const [filterComposicao, setFilterComposicao] = useState<string>('Todos');
@@ -690,6 +691,7 @@ export default function Dashboard() {
       'Telefone',
       'Data de Ingresso',
       'Status do Acompanhamento',
+      'Motivo da Evasão / Desistência',
       'Bairro / Localidade',
       'Escolaridade',
       'Ocupação / Trabalho',
@@ -720,6 +722,7 @@ export default function Dashboard() {
 
       // 6. Status do Acompanhamento
       const statusAcompanhamento = item.status_curso || 'Em Acompanhamento';
+      const motivoEvasao = getAssistidoMotivoEvasao(item) || 'Não se aplica';
 
       // 7. Bairro / Localidade
       const isRua =
@@ -791,6 +794,7 @@ export default function Dashboard() {
         escapeCSV(telefone),
         escapeCSV(dataIngresso),
         escapeCSV(statusAcompanhamento),
+        escapeCSV(motivoEvasao),
         escapeCSV(bairroLocalidade),
         escapeCSV(escolaridade),
         escapeCSV(ocupacao),
@@ -1561,6 +1565,15 @@ export default function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           {renderStatusBadge(assistido.status_curso)}
+                          {getAssistidoMotivoEvasao(assistido) && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 truncate max-w-[200px]"
+                              title={`Motivo da Evasão: ${getAssistidoMotivoEvasao(assistido)}`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                              <span className="truncate">Evasão: {getAssistidoMotivoEvasao(assistido)}</span>
+                            </span>
+                          )}
                         </div>
                         {isPendenteAvaliacao4Meses(assistido) && (
                           <div className="mb-1.5">
@@ -1783,8 +1796,18 @@ export default function Dashboard() {
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {renderStatusBadge(assistido.status_curso)}
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderStatusBadge(assistido.status_curso)}
+                            {getAssistidoMotivoEvasao(assistido) && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 max-w-[200px] truncate"
+                                title={`Motivo da Evasão: ${getAssistidoMotivoEvasao(assistido)}`}
+                              >
+                                <span className="font-bold">Motivo:</span> <span className="truncate">{getAssistidoMotivoEvasao(assistido)}</span>
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Avaliação 4 Meses */}

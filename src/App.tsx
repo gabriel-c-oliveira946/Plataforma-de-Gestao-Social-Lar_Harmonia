@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
 import CadastrarAssistido from './pages/CadastrarAssistido';
 import Dashboard from './pages/Dashboard';
+import GerenciarEquipe from './pages/GerenciarEquipe';
 
 export default function App() {
   return (
@@ -34,6 +35,22 @@ export default function App() {
                   <>
                     <Header />
                     <CadastrarAssistido />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/gerenciar-equipe" element={
+                <ProtectedRoute>
+                  <>
+                    <Header />
+                    <GerenciarEquipe />
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/equipe" element={
+                <ProtectedRoute>
+                  <>
+                    <Header />
+                    <GerenciarEquipe />
                   </>
                 </ProtectedRoute>
               } />

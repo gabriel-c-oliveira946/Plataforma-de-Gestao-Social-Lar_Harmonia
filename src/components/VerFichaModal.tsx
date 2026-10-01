@@ -5,9 +5,20 @@ import {
   isPendenteAvaliacao4Meses,
   hasAvaliacao4Meses,
   isStatusAtivo,
-  getDiasIngresso
+  getDiasIngresso,
+  getAvaliacao4Meses,
+  getAssistidoMotivoEvasao,
+  getAssistidoDataSaida
 } from '../utils/avaliacao4Meses';
-export { isPendenteAvaliacao4Meses };
+export {
+  isPendenteAvaliacao4Meses,
+  hasAvaliacao4Meses,
+  isStatusAtivo,
+  getDiasIngresso,
+  getAvaliacao4Meses,
+  getAssistidoMotivoEvasao,
+  getAssistidoDataSaida
+};
 import {
   X,
   User,
@@ -76,42 +87,7 @@ export interface Avaliacao4MesesParsed {
   mudanca_autonomia_qualidade_vida: string;
 }
 
-// Helper para extrair Data de Saída se houver
-export function getAssistidoDataSaida(item: Assistido): string | null {
-  if (item.expectativa_curso?.includes('Data de Saída:')) {
-    const match = item.expectativa_curso.match(/Data de Saída:\s*([^|]+)/);
-    if (match && match[1]?.trim()) {
-      return match[1].trim();
-    }
-  }
-  return null;
-}
-
-// Helper para extrair avaliação de 4 meses registrada
-export function getAvaliacao4Meses(item: Assistido): Avaliacao4MesesParsed | null {
-  if (!item.expectativa_curso) return null;
-  const match = item.expectativa_curso.match(
-    /\[Avaliação 4 Meses\s*-\s*([^\]]+)\]\s*Status:\s*([^|]+)\|\s*Impacto:\s*([^|]+)\|\s*Depoimento:\s*([\s\S]*?)(?:\||$)/
-  );
-  if (match) {
-    let statusRaw = match[2].trim();
-    let motivo = '';
-    const motMatch = statusRaw.match(/^([^(]+)\s*\(([^)]+)\)/);
-    if (motMatch) {
-      statusRaw = motMatch[1].trim();
-      motivo = motMatch[2].trim();
-    }
-    return {
-      data_avaliacao: match[1].trim(),
-      status_final_curso: (statusRaw as any) || 'Concluiu Oficina',
-      motivo_evasao: motivo,
-      impacto_gerado: (match[3].trim() as any) || 'Aumentou Renda em Casa',
-      mudanca_autonomia_qualidade_vida: match[4].trim()
-    };
-  }
-  return null;
-}
-
+// Interface Assistido
 export interface Assistido {
   id: string;
   nome_completo: string;
@@ -573,10 +549,25 @@ export function convertAssistidoToFormData(assistido: Assistido): CadastroFormDa
       : assistido.created_at
       ? assistido.created_at.split('T')[0]
       : new Date().toISOString().split('T')[0],
-    status_acompanhamento: (assistido.status_curso as any) || 'Ativo / Em Acompanhamento',
+    status_acompanhamento: (() => {
+      const s = (assistido.status_curso || '').toLowerCase();
+      if (s.includes('desist') || s.includes('evas') || s.includes('trancad')) {
+        return 'Desistente / Evasão';
+      }
+      if (s.includes('conclu') || s.includes('formad')) {
+        return 'Concluído';
+      }
+      if (s.includes('pausad')) {
+        return 'Pausado';
+      }
+      return 'Ativo / Em Acompanhamento';
+    })(),
     data_saida: (() => {
       const match = assistido.expectativa_curso?.match(/Data de Saída:\s*([^|]+)/);
       return match && match[1]?.trim() ? match[1].trim() : '';
+    })(),
+    motivo_evasao: (() => {
+      return getAssistidoMotivoEvasao(assistido) || '';
     })(),
 
     atividade_remunerada: isAposentado ? 'Aposentado(a) / Pensionista' : isRemunerada ? 'Sim' : 'Não',
@@ -827,9 +818,15 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
   );
   const [statusFinalCurso, setStatusFinalCurso] = useState<
     'Concluiu Oficina' | 'Desistiu (Evasão)' | 'Continua em Acompanhamento'
-  >(() => existingAvaliacao?.status_final_curso || 'Concluiu Oficina');
+  >(() => {
+    if (existingAvaliacao?.status_final_curso) return existingAvaliacao.status_final_curso;
+    const isEvasao =
+      (assistido.status_curso || '').toLowerCase().includes('desist') ||
+      (assistido.status_curso || '').toLowerCase().includes('evas');
+    return isEvasao ? 'Desistiu (Evasão)' : 'Concluiu Oficina';
+  });
   const [motivoEvasao, setMotivoEvasao] = useState<string>(
-    () => existingAvaliacao?.motivo_evasao || ''
+    () => existingAvaliacao?.motivo_evasao || getAssistidoMotivoEvasao(assistido) || ''
   );
   const [impactoGerado, setImpactoGerado] = useState<
     'Conseguiu Emprego' | 'Abriu Pequeno Negócio' | 'Aumentou Renda em Casa' | 'Sem Alteração Renda' | 'Outro'
@@ -846,14 +843,18 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
     if (av) {
       setDataAvaliacao(av.data_avaliacao);
       setStatusFinalCurso(av.status_final_curso);
-      setMotivoEvasao(av.motivo_evasao || '');
+      setMotivoEvasao(av.motivo_evasao || getAssistidoMotivoEvasao(assistido) || '');
       setImpactoGerado(av.impacto_gerado);
       setMudancaAutonomia(av.mudanca_autonomia_qualidade_vida);
       setIsEditingAvaliacao(false);
     } else {
       setDataAvaliacao(new Date().toISOString().split('T')[0]);
-      setStatusFinalCurso('Concluiu Oficina');
-      setMotivoEvasao('');
+      const existingMotive = getAssistidoMotivoEvasao(assistido);
+      const isEvasao =
+        (assistido.status_curso || '').toLowerCase().includes('desist') ||
+        (assistido.status_curso || '').toLowerCase().includes('evas');
+      setStatusFinalCurso(isEvasao ? 'Desistiu (Evasão)' : 'Concluiu Oficina');
+      setMotivoEvasao(existingMotive || '');
       setImpactoGerado('Aumentou Renda em Casa');
       setMudancaAutonomia('');
       setIsEditingAvaliacao(true);
@@ -1232,12 +1233,23 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         expectativasList.push(`Data de Saída: ${editFormData.data_saida.trim()}`);
       }
 
+      if (editFormData.motivo_evasao?.trim()) {
+        expectativasList.push(`Motivo da Evasão: ${editFormData.motivo_evasao.trim()}`);
+      }
+
       // Preservar registro da Avaliação de 4 Meses se já existente
       if (existingAvaliacao) {
+        const evMotive =
+          existingAvaliacao.status_final_curso === 'Desistiu (Evasão)'
+            ? editFormData.motivo_evasao?.trim() || existingAvaliacao.motivo_evasao
+            : existingAvaliacao.motivo_evasao;
+
         const blocoAvaliacao = `[Avaliação 4 Meses - ${existingAvaliacao.data_avaliacao}] Status: ${
           existingAvaliacao.status_final_curso
         }${
-          existingAvaliacao.motivo_evasao ? ` (${existingAvaliacao.motivo_evasao})` : ''
+          evMotive ? ` (${evMotive})` : ''
+        }${
+          evMotive ? ` | Motivo da Evasão: ${evMotive}` : ''
         } | Impacto: ${existingAvaliacao.impacto_gerado} | Depoimento: ${
           existingAvaliacao.mudanca_autonomia_qualidade_vida
         }`;
@@ -1458,19 +1470,27 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
         .filter((s) => s !== 'Nenhum / Nunca utilizou');
       filteredServicos.push(servicoItem);
 
-      // Atualizar o bloco estruturado na expectativa_curso
+      // Atualizar o bloco estruturado na expectativa_curso com limpeza robusta
       const cleanExpectativa = (assistido.expectativa_curso || '')
-        .replace(/\s*\|\s*\[Avaliação 4 Meses[^\]]*\][^\n|]*/g, '')
-        .replace(/\[Avaliação 4 Meses[^\]]*\][^\n|]*/g, '')
+        .replace(/\s*\|\s*\[Avaliação 4 Meses\s*-\s*[^\]]+\][\s\S]*?(?=\s*\|\s*(?:\[|Data de Saída|Motivo da Evasão|Oficina)|$)/gi, '')
+        .replace(/\[Avaliação 4 Meses\s*-\s*[^\]]+\][\s\S]*?(?=\s*\|\s*(?:\[|Data de Saída|Motivo da Evasão|Oficina)|$)/gi, '')
         .trim();
 
       const blocoAvaliacao = `[Avaliação 4 Meses - ${dataAvaliacao}] Status: ${statusFinalCurso}${
-        motivoEvasao.trim() ? ` (${motivoEvasao.trim()})` : ''
+        statusFinalCurso === 'Desistiu (Evasão)' && motivoEvasao.trim() ? ` (${motivoEvasao.trim()})` : ''
+      }${
+        statusFinalCurso === 'Desistiu (Evasão)' && motivoEvasao.trim() ? ` | Motivo da Evasão: ${motivoEvasao.trim()}` : ''
       } | Impacto: ${impactoGerado} | Depoimento: ${mudancaAutonomia.trim()}`;
 
-      const novaExpectativa = cleanExpectativa
+      let novaExpectativa = cleanExpectativa
         ? `${cleanExpectativa} | ${blocoAvaliacao}`
         : blocoAvaliacao;
+
+      if (statusFinalCurso === 'Desistiu (Evasão)' && motivoEvasao.trim()) {
+        if (!novaExpectativa.includes('Motivo da Evasão:')) {
+          novaExpectativa = `${novaExpectativa} | Motivo da Evasão: ${motivoEvasao.trim()}`;
+        }
+      }
 
       // Obter usuário logado
       let authUserId: string | null = null;
@@ -1910,6 +1930,14 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                   <span>•</span>
                   <span>CPF: {assistido.cpf || 'Não informado'}</span>
                 </p>
+                {getAssistidoMotivoEvasao(assistido) && (
+                  <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/80 rounded-lg text-xs text-amber-950 dark:text-amber-200 w-fit shadow-2xs animate-fadeIn">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>
+                      Motivo da Evasão: <strong className="font-bold underline decoration-amber-400">"{getAssistidoMotivoEvasao(assistido)}"</strong>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2477,6 +2505,17 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                             : 'Em acompanhamento ativo'}
                         </span>
                       </div>
+                      {getAssistidoMotivoEvasao(assistido) && (
+                        <div className="col-span-1 sm:col-span-2 md:col-span-3 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/80 animate-fadeIn">
+                          <span className="text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider block text-[10px] flex items-center gap-1.5 mb-0.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            Motivo da Evasão / Desistência Registrado:
+                          </span>
+                          <span className="font-bold text-amber-950 dark:text-amber-100 text-xs sm:text-sm leading-relaxed block">
+                            "{getAssistidoMotivoEvasao(assistido)}"
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2659,6 +2698,17 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                           : 'Em acompanhamento ativo'}
                       </span>
                     </div>
+                    {getAssistidoMotivoEvasao(assistido) && (
+                      <div className="col-span-1 sm:col-span-2 md:col-span-3 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/80 animate-fadeIn">
+                        <span className="text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider block text-[10px] flex items-center gap-1.5 mb-0.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          Motivo da Evasão / Desistência Registrado:
+                        </span>
+                        <span className="font-bold text-amber-950 dark:text-amber-100 text-xs sm:text-sm leading-relaxed block">
+                          "{getAssistidoMotivoEvasao(assistido)}"
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2956,6 +3006,18 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                       </span>
                     </div>
 
+                    {getAssistidoMotivoEvasao(assistido) && (
+                      <div className="col-span-1 sm:col-span-2 md:col-span-3 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/80 animate-fadeIn">
+                        <span className="text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider block text-[10px] flex items-center gap-1.5 mb-0.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          Motivo da Evasão / Desistência Registrado:
+                        </span>
+                        <span className="font-bold text-amber-950 dark:text-amber-100 text-xs sm:text-sm leading-relaxed block">
+                          "{getAssistidoMotivoEvasao(assistido)}"
+                        </span>
+                      </div>
+                    )}
+
                     <div>
                       <span className="text-gray-400 font-semibold block">
                         É a oficina de sua preferência?
@@ -3068,8 +3130,8 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                           <span className="font-extrabold text-emerald-800 text-sm block">
                             {existingAvaliacao.status_final_curso}
                             {existingAvaliacao.motivo_evasao && (
-                              <span className="text-xs font-normal text-gray-600 block mt-0.5">
-                                Motivo: {existingAvaliacao.motivo_evasao}
+                              <span className="text-xs font-semibold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 p-2 rounded-lg border border-amber-200 dark:border-amber-800 block mt-1.5">
+                                Motivo da Evasão: <strong className="font-bold underline decoration-amber-400">"{existingAvaliacao.motivo_evasao}"</strong>
                               </span>
                             )}
                           </span>
@@ -3213,7 +3275,17 @@ export const VerFichaModal: React.FC<VerFichaModalProps> = ({
                                   if (e.target.value !== 'Outro') {
                                     setMotivoEvasao(e.target.value);
                                   } else {
-                                    setMotivoEvasao('');
+                                    const opcoesPredefinidas = [
+                                      'Transporte / Distância',
+                                      'Horário incompatível / Conseguiu Trabalho',
+                                      'Cuidado infantil / Dependentes',
+                                      'Saúde fragilizada',
+                                      'Mudança de endereço / Território',
+                                      'Falta de interesse'
+                                    ];
+                                    if (opcoesPredefinidas.includes(motivoEvasao)) {
+                                      setMotivoEvasao('');
+                                    }
                                   }
                                 }}
                                 className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"

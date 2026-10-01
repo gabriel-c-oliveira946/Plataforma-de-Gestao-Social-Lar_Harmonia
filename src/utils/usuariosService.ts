@@ -5,8 +5,10 @@ import {
   getEquipeList,
   saveMembroLocal,
   desativarMembroEquipe as desativarMembroEquipeLocal,
+  reativarMembroEquipe as reativarMembroEquipeLocal,
   saveInativo,
-  saveMensagemDesativacao
+  saveMensagemDesativacao,
+  limparCacheBloqueioLocal
 } from './equipe';
 import { notify } from '../context/ToastContext';
 
@@ -198,10 +200,62 @@ export async function atualizarCargoUsuario({
   }
 }
 
+/**
+ * Reativa o acesso de um membro da equipe gravando diretamente no Supabase na tabela 'profiles'
+ * com status = 'ativo', ativo = true e mensagem_desativacao = null, e limpando o cache local.
+ */
+export async function reativarMembroEquipe(
+  membroId: string,
+  email?: string,
+  username?: string,
+  showAlert = true
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    limparCacheBloqueioLocal(membroId, email, username);
+
+    const hasUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL;
+    if (hasUrl && membroId) {
+      let { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          status: 'ativo',
+          ativo: true,
+          mensagem_desativacao: null
+        })
+        .eq('id', membroId);
+
+      if (profileError && profileError.message?.includes('status')) {
+        await supabase
+          .from('profiles')
+          .update({
+            ativo: true
+          })
+          .eq('id', membroId);
+      }
+    }
+
+    const res = await reativarMembroEquipeLocal(membroId, email, username);
+    if (!res.success) {
+      if (showAlert) notify.error('Erro ao reativar', res.error);
+      return res;
+    }
+
+    if (showAlert) {
+      notify.success('Acesso Reativado', 'O operador foi reativado com sucesso.');
+    }
+    return { success: true };
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Erro inesperado ao reativar membro da equipe.';
+    if (showAlert) notify.error('Erro ao reativar', errorMsg);
+    return { success: false, error: errorMsg };
+  }
+}
+
 export const usuariosService = {
   atualizarCargo: atualizarCargoUsuario,
   desativarUsuario,
   desativarMembroEquipe,
+  reativarMembroEquipe,
   removerMembroEquipe,
   mapearCargoParaEnum,
   formatarNomeCargo,

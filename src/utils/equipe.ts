@@ -14,6 +14,204 @@ const STORAGE_KEY_EQUIPE = 'lar_harmonia_equipe_custom';
 const STORAGE_KEY_INATIVOS = 'lar_harmonia_inativos';
 const STORAGE_KEY_INATIVOS_MENSAGENS = 'lar_harmonia_inativos_mensagens';
 
+/**
+ * Normaliza strings removendo acentos e convertendo para minúsculas
+ */
+export function normalizeText(str?: string | null): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Limpa obrigatoriamente o e-mail, ID e username do usuário de TODAS as chaves de cache e bloqueio local
+ * (ex: membros_inativos, desativados, inativos, contas_inativas, bloqueados, etc.)
+ */
+export function limparCacheBloqueioLocal(
+  id?: string | null,
+  email?: string | null,
+  usernameOrNome?: string | null
+): void {
+  const targets = [id, email, usernameOrNome]
+    .filter(Boolean)
+    .map((s) => s!.toLowerCase().trim());
+
+  if (targets.length === 0) return;
+
+  const normalizedTargets = targets.map((t) => normalizeText(t));
+
+  // 1. Chaves conhecidas de listas de identificadores inativos
+  const knownListKeys = [
+    'lar_harmonia_inativos',
+    'membros_inativos',
+    'desativados',
+    'usuarios_desativados',
+    'inativos',
+    'contas_inativas',
+    'bloqueados',
+    'membros_bloqueados',
+    'lar_harmonia_desativados',
+    'equipe_inativos'
+  ];
+
+  for (const key of knownListKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((item: any) => {
+            if (typeof item === 'string') {
+              const itemClean = item.toLowerCase().trim();
+              const itemNorm = normalizeText(item);
+              return (
+                !targets.includes(itemClean) &&
+                !normalizedTargets.includes(itemNorm)
+              );
+            }
+            if (typeof item === 'object' && item !== null) {
+              const itemEmail = item.email?.toLowerCase().trim();
+              const itemId = item.id?.toLowerCase().trim();
+              const itemUsername = item.username?.toLowerCase().trim();
+              const itemNome = item.nome ? normalizeText(item.nome) : '';
+              return !(
+                (itemEmail && targets.includes(itemEmail)) ||
+                (itemId && targets.includes(itemId)) ||
+                (itemUsername && targets.includes(itemUsername)) ||
+                (itemNome && normalizedTargets.includes(itemNome))
+              );
+            }
+            return true;
+          });
+          localStorage.setItem(key, JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Chaves conhecidas de mapas de mensagens personalizadas
+  const knownMapKeys = [
+    'lar_harmonia_inativos_mensagens',
+    'inativos_mensagens',
+    'mensagens_desativacao',
+    'desativados_mensagens',
+    'recados_desativacao'
+  ];
+
+  for (const key of knownMapKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const map = JSON.parse(raw);
+        if (typeof map === 'object' && map !== null) {
+          let changed = false;
+          for (const t of targets) {
+            if (t in map) {
+              delete map[t];
+              changed = true;
+            }
+          }
+          if (changed) {
+            localStorage.setItem(key, JSON.stringify(map));
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Varrer dinamicamente qualquer outra chave que possa ter sido criada com termos de inatividade
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      const lowerK = k.toLowerCase();
+      if (
+        lowerK.includes('inativ') ||
+        lowerK.includes('desativ') ||
+        lowerK.includes('bloque')
+      ) {
+        const val = localStorage.getItem(k);
+        if (!val) continue;
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter((item: any) => {
+              if (typeof item === 'string') {
+                const itemClean = item.toLowerCase().trim();
+                return !targets.includes(itemClean);
+              }
+              if (typeof item === 'object' && item !== null) {
+                const itemEmail = item.email?.toLowerCase().trim();
+                const itemId = item.id?.toLowerCase().trim();
+                return !(
+                  (itemEmail && targets.includes(itemEmail)) ||
+                  (itemId && targets.includes(itemId))
+                );
+              }
+              return true;
+            });
+            localStorage.setItem(k, JSON.stringify(filtered));
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            let mod = false;
+            for (const t of targets) {
+              if (t in parsed) {
+                delete parsed[t];
+                mod = true;
+              }
+            }
+            if (mod) localStorage.setItem(k, JSON.stringify(parsed));
+          }
+        } catch {
+          if (targets.includes(val.toLowerCase().trim())) {
+            localStorage.removeItem(k);
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 4. Sincronizar o status 'ativo' no cache principal da equipe (STORAGE_KEY_EQUIPE)
+  try {
+    const equipeRaw = localStorage.getItem(STORAGE_KEY_EQUIPE);
+    if (equipeRaw) {
+      const membros: UserProfile[] = JSON.parse(equipeRaw);
+      if (Array.isArray(membros)) {
+        const updated = membros.map((m) => {
+          const isMatch =
+            (m.id && targets.includes(m.id.toLowerCase().trim())) ||
+            (m.email && targets.includes(m.email.toLowerCase().trim())) ||
+            (m.nome && normalizedTargets.includes(normalizeText(m.nome)));
+
+          if (isMatch) {
+            const restoredRole =
+              m.role && m.role !== ('inativo' as any) ? m.role : 'servico_social';
+            const restoredCargo =
+              m.cargo && m.cargo !== 'Inativo'
+                ? m.cargo
+                : restoredRole === 'admin'
+                ? 'Admin'
+                : getRoleCargo(restoredRole);
+            return {
+              ...m,
+              status: 'ativo' as const,
+              ativo: true,
+              role: restoredRole,
+              cargo: restoredCargo,
+              mensagem_desativacao: undefined,
+              data_desativacao: undefined
+            };
+          }
+          return m;
+        });
+        localStorage.setItem(STORAGE_KEY_EQUIPE, JSON.stringify(updated));
+      }
+    }
+  } catch {}
+}
+
 const supabaseUrl =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
   'https://placeholder-larharmonia.supabase.co';
@@ -135,26 +333,63 @@ export function removeInativo(idOrEmail: string): void {
 export function isEmailOrIdInativo(val?: string | null): boolean {
   if (!val) return false;
   const clean = val.toLowerCase().trim();
+  const norm = normalizeText(clean);
 
-  // 1. Checa lista persistente de inativos
-  const inativos = getInativosList();
-  if (inativos.includes(clean)) return true;
-
-  // 2. Checa membros locais
+  // 1. Checa primeiro os membros locais registrados
   try {
     const raw = localStorage.getItem(STORAGE_KEY_EQUIPE);
     if (raw) {
       const membros: UserProfile[] = JSON.parse(raw);
       const found = membros.find(
         (m) =>
-          m.id === clean ||
-          (m.email && m.email.toLowerCase() === clean)
+          m.id?.toLowerCase() === clean ||
+          (m.email && m.email.toLowerCase() === clean) ||
+          (m.nome && normalizeText(m.nome) === norm)
       );
-      if (found && (found.status === 'inativo' || found.ativo === false)) {
-        return true;
+      if (found) {
+        if (found.status === 'inativo' || found.ativo === false) return true;
+        if (found.status === 'ativo' || found.ativo === true) return false;
       }
     }
   } catch {}
+
+  // 2. Checa lista persistente de inativos
+  const inativos = getInativosList();
+  if (
+    inativos.some(
+      (item) => item.toLowerCase().trim() === clean || normalizeText(item) === norm
+    )
+  ) {
+    return true;
+  }
+
+  // 3. Checa chaves adicionais de bloqueio
+  const additionalKeys = [
+    'membros_inativos',
+    'desativados',
+    'usuarios_desativados',
+    'inativos',
+    'bloqueados'
+  ];
+  for (const k of additionalKeys) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          if (
+            parsed.some(
+              (x: any) =>
+                typeof x === 'string' &&
+                (x.toLowerCase().trim() === clean || normalizeText(x) === norm)
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+    } catch {}
+  }
 
   return false;
 }
@@ -524,97 +759,165 @@ export function getOperadorInfo(
 /**
  * Localiza o e-mail atrelado a um nome de usuário, nome completo ou identificador:
  * - Se contiver '@', retorna diretamente o e-mail informado.
- * - Se não contiver '@':
- *   1. Procura na lista e diretório de membros da equipe (user_metadata/cadastros locais).
- *   2. Consulta a tabela `profiles` do Supabase para correspondência de nome.
- *   3. Mapeia identificadores de administração comuns (admin, diretoria, etc.).
- *   4. Tenta o padrão do domínio da instituição (@larharmonia.org).
+ * - Permite buscar por primeiro nome ou nome completo (ex: "visitante", "Visitante", "Maria", "Maria Silva").
+ * - Executa busca insensível a maiúsculas/minúsculas (ilike) na tabela `profiles` do Supabase nos campos `nome` e `email`.
+ * - Caso o usuário digite um nome como "visitante", garante que encontre "visitante@larharmonia.org" mesmo com espaços ou acentos.
  */
 export async function resolveEmailFromUsername(input: string): Promise<string | null> {
-  const trimmed = input.trim();
+  const trimmed = (input || '').trim();
   if (!trimmed) return null;
   if (trimmed.includes('@')) return trimmed.toLowerCase();
 
-  const lower = trimmed.toLowerCase();
-  const lowerNoSpaces = lower.replace(/\s+/g, '');
-  const lowerWithDots = lower.replace(/\s+/g, '.');
+  const norm = normalizeText(trimmed);
+  const noSpaces = norm.replace(/\s+/g, '');
+  const withDots = norm.replace(/\s+/g, '.');
+  const words = norm.split(/\s+/).filter(Boolean);
+  const firstWord = words[0] || '';
 
-  // 1. Consultar membros locais e equipe cadastrada
+  // 1. Caso especial: "visitante" (com acentos, espaços ou maiúsculas/minúsculas)
+  // Garante a resolução imediata para visitante@larharmonia.org
+  if (noSpaces === 'visitante' || firstWord === 'visitante') {
+    return 'visitante@larharmonia.org';
+  }
+
+  // 2. Busca insensível a maiúsculas/minúsculas (ilike) na tabela 'profiles' do Supabase
+  // nos campos 'nome' e 'email'
   try {
-    const equipe = await getEquipeList();
+    const cleanSearch = trimmed.replace(/[%_,]/g, '');
 
-    // a. Prefixo exato do e-mail (ex: "ana" para "ana@larharmonia.org")
-    const byPrefix = equipe.find(
-      (m) => m.email && m.email.split('@')[0].toLowerCase() === lower
-    );
-    if (byPrefix?.email) return byPrefix.email;
+    // Busca ampla com ilike em 'nome' OU 'email'
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, nome, email, cargo, role, status, ativo')
+      .or(`nome.ilike.%${cleanSearch}%,email.ilike.%${cleanSearch}%`)
+      .limit(30);
 
-    // b. Correspondência exata no nome completo
+    if (!error && profiles && profiles.length > 0) {
+      // a) Prefixo exato do e-mail (ex: "ana" para "ana@larharmonia.org")
+      const byEmailPrefix = profiles.find((p) => {
+        if (!p.email) return false;
+        const prefix = normalizeText(p.email.split('@')[0]);
+        return prefix === norm || prefix === noSpaces || prefix === withDots;
+      });
+      if (byEmailPrefix?.email) return byEmailPrefix.email.toLowerCase();
+
+      // b) Nome completo exato normalizado (ex: "Maria Silva" ou "maria silva")
+      const byFullName = profiles.find((p) => {
+        if (!p.nome) return false;
+        const pNorm = normalizeText(p.nome);
+        return (
+          pNorm === norm ||
+          pNorm.replace(/\s+/g, '') === noSpaces ||
+          pNorm.replace(/\s+/g, '.') === withDots
+        );
+      });
+      if (byFullName?.email) return byFullName.email.toLowerCase();
+
+      // c) Primeiro nome (ex: "Maria" para perfil com nome "Maria Silva")
+      const byFirstName = profiles.find((p) => {
+        if (!p.nome) return false;
+        const pFirst = normalizeText(p.nome).split(/\s+/)[0];
+        return pFirst === firstWord || pFirst === norm;
+      });
+      if (byFirstName?.email) return byFirstName.email.toLowerCase();
+
+      // d) Substring no nome ou e-mail
+      const bySubstring = profiles.find((p) => {
+        const pNome = p.nome ? normalizeText(p.nome) : '';
+        const pEmail = p.email ? normalizeText(p.email) : '';
+        return (
+          pNome.includes(norm) ||
+          pEmail.includes(norm) ||
+          (firstWord.length >= 3 && pNome.includes(firstWord))
+        );
+      });
+      if (bySubstring?.email) return bySubstring.email.toLowerCase();
+
+      // e) Se algum perfil encontrado possui e-mail cadastrado
+      for (const p of profiles) {
+        if (p.email) return p.email.toLowerCase();
+      }
+    }
+
+    // Se o usuário digitou nome composto ou sobrenome e a consulta inicial não encontrou,
+    // tenta busca específica no campo 'nome' pelo primeiro nome
+    if (firstWord && firstWord !== norm && firstWord.length >= 3) {
+      const { data: firstProfiles } = await supabase
+        .from('profiles')
+        .select('id, nome, email, cargo, role, status, ativo')
+        .ilike('nome', `%${firstWord}%`)
+        .limit(10);
+
+      if (firstProfiles && firstProfiles.length > 0) {
+        const match = firstProfiles.find((p) => {
+          if (!p.nome) return false;
+          const pFirst = normalizeText(p.nome).split(/\s+/)[0];
+          return pFirst === firstWord;
+        });
+        if (match?.email) return match.email.toLowerCase();
+        if (firstProfiles[0]?.email) return firstProfiles[0].email.toLowerCase();
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar profiles via ilike no Supabase:', err);
+  }
+
+  // 3. Consultar lista e diretório de membros da equipe no armazenamento local/memória
+  try {
+    const equipe = await getEquipeList(undefined, true);
+
+    // a. Prefixo exato do e-mail
+    const byPrefix = equipe.find((m) => {
+      if (!m.email) return false;
+      const prefix = normalizeText(m.email.split('@')[0]);
+      return prefix === norm || prefix === noSpaces;
+    });
+    if (byPrefix?.email) return byPrefix.email.toLowerCase();
+
+    // b. Correspondência de nome completo (com ou sem acentos)
     const byExactName = equipe.find(
-      (m) => m.nome && m.nome.toLowerCase() === lower
+      (m) => m.nome && normalizeText(m.nome) === norm
     );
-    if (byExactName?.email) return byExactName.email;
+    if (byExactName?.email) return byExactName.email.toLowerCase();
 
-    // c. Correspondência normalizada (sem espaços ou com pontos)
+    // c. Correspondência sem espaços
     const byNormalizedName = equipe.find((m) => {
       if (!m.nome) return false;
-      const clean = m.nome.toLowerCase().replace(/\s+/g, '');
-      const dotted = m.nome.toLowerCase().replace(/\s+/g, '.');
-      return clean === lowerNoSpaces || dotted === lowerWithDots || clean === lower;
+      const clean = normalizeText(m.nome).replace(/\s+/g, '');
+      return clean === noSpaces || clean === norm;
     });
-    if (byNormalizedName?.email) return byNormalizedName.email;
+    if (byNormalizedName?.email) return byNormalizedName.email.toLowerCase();
 
-    // d. Primeiro nome
+    // d. Primeiro nome (ex: "Maria", "Visitante")
     const byFirstName = equipe.find((m) => {
       if (!m.nome) return false;
-      const firstName = m.nome.toLowerCase().split(' ')[0];
-      return firstName === lower;
+      const pFirst = normalizeText(m.nome).split(/\s+/)[0];
+      return pFirst === firstWord || pFirst === norm;
     });
-    if (byFirstName?.email) return byFirstName.email;
+    if (byFirstName?.email) return byFirstName.email.toLowerCase();
 
     // e. Substring no nome
     const bySubstring = equipe.find(
-      (m) => m.nome && m.nome.toLowerCase().includes(lower)
+      (m) => m.nome && normalizeText(m.nome).includes(norm)
     );
-    if (bySubstring?.email) return bySubstring.email;
+    if (bySubstring?.email) return bySubstring.email.toLowerCase();
   } catch {
     // Continua para próxima tentativa se equipe falhar
   }
 
-  // 2. Consultar tabela 'profiles' do Supabase por 'nome'
-  try {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .ilike('nome', `%${trimmed}%`)
-      .limit(5);
-
-    if (profiles && profiles.length > 0) {
-      for (const p of profiles) {
-        if ((p as any).email) return (p as any).email;
-      }
-      // Se houver profile cujo id ou nome case com os registros locais
-      for (const p of profiles) {
-        const local = getMembrosLocais().find(
-          (m) => m.id === p.id || m.nome.toLowerCase() === p.nome?.toLowerCase()
-        );
-        if (local?.email) return local.email;
-      }
-    }
-  } catch (err) {
-    console.warn('Erro ao consultar profiles no Supabase:', err);
-  }
-
-  // 3. Nomes reservados de administração
-  if (['admin', 'administrador', 'diretoria', 'diretor', 'gabriel'].includes(lower)) {
+  // 4. Identificadores de administração comuns
+  if (
+    ['admin', 'administrador', 'diretoria', 'diretor', 'gabriel'].includes(noSpaces) ||
+    ['admin', 'administrador'].includes(firstWord)
+  ) {
     const admin = getMembrosLocais().find((m) => m.role === 'admin' && m.email);
-    if (admin?.email) return admin.email;
+    if (admin?.email) return admin.email.toLowerCase();
     return 'gabriel.costaoliveira77@gmail.com';
   }
 
-  // 4. Se for um handle simples (ex: "recepcao", "ana", "social"), tentar no domínio institucional
-  if (/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
-    return `${lowerWithDots}@larharmonia.org`;
+  // 5. Se for um handle simples (ex: "recepcao", "ana", "social"), tentar no domínio institucional
+  if (/^[a-zA-Z0-9._-]+$/.test(withDots)) {
+    return `${withDots}@larharmonia.org`;
   }
 
   return null;
@@ -854,10 +1157,14 @@ export async function desativarMembroEquipe(
  */
 export async function reativarMembroEquipe(
   id: string,
-  email?: string
+  email?: string,
+  usernameOrNome?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Remover da lista persistente de inativos e recados
+    // 1. LIMPEZA DO LOCALSTORAGE: Remova obrigatoriamente o e-mail, ID e username do usuário
+    // de TODAS as chaves de cache/bloqueio local (ex: membros_inativos, desativados, etc.)
+    limparCacheBloqueioLocal(id, email, usernameOrNome);
+
     if (id) {
       removeInativo(id);
       removeMensagemDesativacao(id);
@@ -866,15 +1173,23 @@ export async function reativarMembroEquipe(
       removeInativo(email);
       removeMensagemDesativacao(email);
     }
+    if (usernameOrNome) {
+      removeInativo(usernameOrNome);
+      removeMensagemDesativacao(usernameOrNome);
+    }
 
-    // 2. Atualizar no armazenamento local
+    // 2. Atualizar no armazenamento local persistente
     const locais = getMembrosLocais();
     let restoredRole: UserRole = 'servico_social';
     let restoredCargo = 'Serviço Social';
     let found = false;
 
     const updated = locais.map((m) => {
-      if (m.id === id || (email && m.email && m.email.toLowerCase() === email.toLowerCase())) {
+      if (
+        m.id === id ||
+        (email && m.email && m.email.toLowerCase() === email.toLowerCase()) ||
+        (usernameOrNome && m.nome && normalizeText(m.nome) === normalizeText(usernameOrNome))
+      ) {
         found = true;
         restoredRole = m.role && m.role !== ('inativo' as any) ? m.role : 'servico_social';
         restoredCargo =
@@ -908,7 +1223,7 @@ export async function reativarMembroEquipe(
       updated.push({
         id,
         email,
-        nome: email ? email.split('@')[0] : 'Operador Social',
+        nome: usernameOrNome || (email ? email.split('@')[0] : 'Operador Social'),
         role: restoredRole,
         cargo: restoredCargo,
         status: 'ativo',
@@ -959,25 +1274,78 @@ export async function reativarMembroEquipe(
       console.warn('Tentativa de sincronizar reativação no Supabase Auth:', authErr);
     }
 
-    // 4. Atualizar na tabela profiles do Supabase
+    // 4. ATUALIZAÇÃO NO SUPABASE:
+    // Execute o UPDATE na tabela `profiles` no Supabase definindo:
+    // status = 'ativo', ativo = true e mensagem_desativacao = NULL
     try {
+      const enumRole = mapCargoToEnumRole(restoredRole);
+      const cargoFmt = mapRoleToCargoFormatado(restoredCargo || restoredRole);
+
       let { error: profErr } = await supabase
         .from('profiles')
         .update({
           status: 'ativo',
-          cargo: mapRoleToCargoFormatado(restoredCargo || restoredRole),
-          role: mapCargoToEnumRole(restoredRole)
+          ativo: true,
+          mensagem_desativacao: null,
+          cargo: cargoFmt,
+          role: enumRole
         })
         .eq('id', id);
+
+      // Tratamento resiliente caso colunas específicas de versão variem no banco
+      if (
+        profErr &&
+        (profErr.message?.includes('mensagem_desativacao') ||
+          profErr.message?.includes('column'))
+      ) {
+        const retry1 = await supabase
+          .from('profiles')
+          .update({
+            status: 'ativo',
+            ativo: true,
+            cargo: cargoFmt,
+            role: enumRole
+          })
+          .eq('id', id);
+        profErr = retry1.error;
+      }
+
+      if (profErr && profErr.message?.includes('ativo')) {
+        const retry2 = await supabase
+          .from('profiles')
+          .update({
+            status: 'ativo',
+            cargo: cargoFmt,
+            role: enumRole
+          })
+          .eq('id', id);
+        profErr = retry2.error;
+      }
 
       if (profErr && profErr.message?.includes('status')) {
         await supabase
           .from('profiles')
           .update({
-            cargo: mapRoleToCargoFormatado(restoredCargo || restoredRole),
-            role: mapCargoToEnumRole(restoredRole)
+            cargo: cargoFmt,
+            role: enumRole
           })
           .eq('id', id);
+      }
+
+      // Se houver e-mail associado, garante atualização também por e-mail caso o ID difira
+      if (email) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              status: 'ativo',
+              ativo: true,
+              mensagem_desativacao: null,
+              cargo: cargoFmt,
+              role: enumRole
+            })
+            .ilike('email', email);
+        } catch {}
       }
     } catch (e) {
       console.warn('Não foi possível atualizar status em profiles no Supabase:', e);

@@ -28,6 +28,7 @@ export interface CadastroFormData {
   data_ingresso: string; // Data de Ingresso / Entrada no Lar Harmonia (YYYY-MM-DD)
   status_acompanhamento: 'Ativo / Em Acompanhamento' | 'Concluído' | 'Desistente / Evasão' | 'Pausado';
   data_saida?: string; // Data de Saída / Desligamento (YYYY-MM-DD, opcional)
+  motivo_evasao?: string; // Motivo da Evasão / Desistência (opcional / quando evasão)
 
   // Aba 2 - Trabalho, Renda e Benefícios
   atividade_remunerada: 'Sim' | 'Não' | 'Aposentado(a) / Pensionista' | string;
@@ -144,6 +145,7 @@ export const INITIAL_CADASTRO_FORM: CadastroFormData = {
   data_ingresso: new Date().toISOString().split('T')[0],
   status_acompanhamento: 'Ativo / Em Acompanhamento',
   data_saida: '',
+  motivo_evasao: '',
 
   // Aba 2
   atividade_remunerada: 'Não',

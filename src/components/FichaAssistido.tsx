@@ -1,5 +1,6 @@
 import React from 'react';
 import { Assistido } from '../types/assistido';
+import { getAssistidoMotivoEvasao } from '../utils/avaliacao4Meses';
 import {
   User,
   HeartPulse,
@@ -197,9 +198,20 @@ export const FichaAssistido: React.FC<FichaAssistidoProps> = ({
             <div>
               <span className="text-slate-500 block text-[10px]">Status de Acompanhamento:</span>
               <span className="font-semibold text-indigo-700">
-                {assistido.status_acompanhamento || 'Ativo / Em Acompanhamento'}
+                {assistido.status_acompanhamento || assistido.status_curso || 'Ativo / Em Acompanhamento'}
               </span>
             </div>
+
+            {getAssistidoMotivoEvasao(assistido) && (
+              <div className="col-span-3 p-2 bg-amber-50 border border-amber-300 rounded text-[11px] my-1">
+                <span className="text-amber-900 font-bold block text-[10px] uppercase tracking-wider">
+                  Motivo da Evasão / Desistência Registrado:
+                </span>
+                <span className="text-slate-900 font-semibold text-xs">
+                  "{getAssistidoMotivoEvasao(assistido)}"
+                </span>
+              </div>
+            )}
 
             <div>
               <span className="text-slate-500 block text-[10px]">CPF:</span>

@@ -21,7 +21,8 @@ import {
   resolveEmailFromUsername,
   saveMembroLocal,
   isUsuarioInativo,
-  getMensagemDesativacao
+  getMensagemDesativacao,
+  limparCacheBloqueioLocal
 } from '../utils/equipe';
 import { getUserDisplayName, parseUserRole, getRoleCargo } from '../types/auth';
 import logoLarHarmonia from '../assets/images/regenerated_image_1790687724025.png';
@@ -80,23 +81,31 @@ export default function Login() {
           .ilike('email', targetEmail)
           .maybeSingle();
 
-        if (
-          preProfile &&
-          (preProfile.status === 'inativo' ||
+        if (preProfile) {
+          // Se o perfil está expressamente ativo no Supabase, limpa qualquer trava residual em cache local
+          if (
+            preProfile.status === 'ativo' &&
+            preProfile.ativo !== false &&
+            preProfile.cargo !== 'Inativo'
+          ) {
+            limparCacheBloqueioLocal(preProfile.id, targetEmail, cleanInput);
+          } else if (
+            preProfile.status === 'inativo' ||
             preProfile.ativo === false ||
-            preProfile.cargo === 'Inativo')
-        ) {
-          await supabase.auth.signOut();
-          setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
-          const customMsg =
-            preProfile.mensagem_desativacao ||
-            getMensagemDesativacao(targetEmail) ||
-            getMensagemDesativacao(cleanInput);
-          if (customMsg && customMsg.trim()) {
-            setDetalhesMensagem(customMsg.trim());
+            preProfile.cargo === 'Inativo'
+          ) {
+            await supabase.auth.signOut();
+            setError('Sua conta foi desativada pela administração. Entre em contato com a diretoria.');
+            const customMsg =
+              preProfile.mensagem_desativacao ||
+              getMensagemDesativacao(targetEmail) ||
+              getMensagemDesativacao(cleanInput);
+            if (customMsg && customMsg.trim()) {
+              setDetalhesMensagem(customMsg.trim());
+            }
+            setLoading(false);
+            return;
           }
-          setLoading(false);
-          return;
         }
       } catch (preErr) {
         console.warn('Verificação prévia de profiles em Login:', preErr);
@@ -229,13 +238,28 @@ export default function Login() {
       }
 
       // Se o perfil no Supabase retornar status === 'inativo' ou ativo === false
-      const isAccountInactive =
-        profileData?.status === 'inativo' ||
-        profileData?.ativo === false ||
-        profileData?.cargo === 'Inativo' ||
-        isUsuarioInativo(authenticatedUser) ||
-        isUsuarioInativo(targetEmail) ||
-        isUsuarioInativo(cleanInput);
+      const hasRemoteProfile = !!profileData;
+      let isAccountInactive = false;
+
+      if (hasRemoteProfile) {
+        if (
+          profileData.status === 'inativo' ||
+          profileData.ativo === false ||
+          profileData.cargo === 'Inativo'
+        ) {
+          isAccountInactive = true;
+        } else if (profileData.status === 'ativo' || profileData.ativo === true) {
+          // Garante limpeza de resíduos locais caso estivesse inativo anteriormente
+          limparCacheBloqueioLocal(authenticatedUser.id, authenticatedUser.email, targetEmail);
+          isAccountInactive = false;
+        }
+      } else {
+        // Fallback caso a tabela profiles não retorne registro
+        isAccountInactive =
+          isUsuarioInativo(authenticatedUser) ||
+          isUsuarioInativo(targetEmail) ||
+          isUsuarioInativo(cleanInput);
+      }
 
       if (isAccountInactive) {
         // a) Realize o logout imediato:
